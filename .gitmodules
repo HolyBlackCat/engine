@@ -1,0 +1,9 @@
+[submodule "deps/macros"]
+	path = deps/macros
+	url = https://github.com/HolyBlackCat/macros
+[submodule "deps/meta"]
+	path = deps/meta
+	url = https://github.com/HolyBlackCat/meta
+[submodule "deps/math"]
+	path = deps/math
+	url = https://github.com/HolyBlackCat/math
