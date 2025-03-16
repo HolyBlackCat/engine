@@ -35,13 +35,11 @@ endif
 # --- Project config ---
 
 PROJ_CXXFLAGS += -std=c++26 -pedantic-errors
-PROJ_CXXFLAGS += -Wall -Wextra -Wdeprecated -Wextra-semi -Wimplicit-fallthrough
+PROJ_CXXFLAGS += -Wall -Wextra -Wdeprecated -Wextra-semi -Wimplicit-fallthrough -Wconversion -Wno-implicit-int-float-conversion
 PROJ_CXXFLAGS += -Wconversion -Wno-implicit-int-float-conversion# Conversion warnings, but without the silly ones.
 PROJ_CXXFLAGS += -ftemplate-backtrace-limit=0 -fmacro-backtrace-limit=0
 PROJ_CXXFLAGS += -Isrc
-PROJ_CXXFLAGS += -Ideps/macros/include
-PROJ_CXXFLAGS += -Ideps/math/include
-PROJ_CXXFLAGS += -Ideps/meta/include
+PROJ_CXXFLAGS += -Ideps/macros/include -Ideps/math/include -Ideps/meta/include -Ideps/reflection/include -Ideps/zstring_view/include
 
 ifeq ($(TARGET_OS),windows)
 PROJ_LDFLAGS += $(_win_subsystem)
@@ -73,8 +71,6 @@ $(call ProjectSetting,libs,*)
 
 
 # --- Libraries ---
-
-DIST_DEPS_ARCHIVE := https://github.com/HolyBlackCat/imp-re/releases/download/deps-sources/deps_v9.zip
 
 _win_is_x32 :=
 _win_sdl3_arch := $(if $(_win_is_x32),i686-w64-mingw32,x86_64-w64-mingw32)
@@ -111,8 +107,8 @@ _openal_flags += -DALSOFT_REQUIRE_SDL2=TRUE -DALSOFT_BACKEND_SDL2=TRUE
 # $(call Library,enkits,enkiTS-686d0ec-2024-05-29.zip)
 #   $(call LibrarySetting,cmake_flags,-DENKITS_INSTALL=ON -DENKITS_BUILD_SHARED=ON -DENKITS_BUILD_EXAMPLES=OFF)
 
-# $(call Library,fmt,fmt-11.0.2.zip)
-#   $(call LibrarySetting,cmake_flags,-DFMT_TEST=OFF)
+$(call Library,fmt,https://github.com/fmtlib/fmt/releases/download/11.1.4/fmt-11.1.4.zip)
+  $(call LibrarySetting,cmake_flags,-DFMT_TEST=OFF)
 
 # ifeq ($(TARGET_OS),emscripten)
 # $(call LibraryStub,freetype,-sUSE_FREETYPE=1)
@@ -134,7 +130,7 @@ _openal_flags += -DALSOFT_REQUIRE_SDL2=TRUE -DALSOFT_BACKEND_SDL2=TRUE
 #   $(call LibrarySetting,build_system,copy_files)
 #   $(call LibrarySetting,copy_files,$(_win_sdl3_arch)/*->.)
 # else
-$(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/preview-3.1.3/SDL3-3.1.3.tar.xz)
+$(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/release-3.2.8/SDL3-3.2.8.tar.gz)
   # Allow SDL to see system packages. If we were using `configure+make`, we'd need `configure_vars = env -uPKG_CONFIG_PATH -uPKG_CONFIG_LIBDIR` instead.
   $(call LibrarySetting,cmake_flags,-DCMAKE_FIND_USE_CMAKE_SYSTEM_PATH=ON)
 # $(call Library,sdl3_net,SDL2_net-2.2.0.tar.gz)

@@ -1,20 +1,40 @@
 #include "mainloop/main.h"
+#include "mainloop/reflected_app.h"
+#include "sdl/basic_library.h"
+#include "em/refl/macros/structs.h"
 
 #include <iostream>
+#include <memory>
 
-struct GameApp : em::AppModule
+struct GameApp : em::App::Module
 {
-    AppAction Init() override
+    EM_REFL(
+        (em::Modules::Sdl)(sdl)
+    )
+
+    em::App::Action Init() override
     {
         std::cout << "Hello!\n";
-        return AppAction::exit_success;
+        return em::App::Action::cont;
     }
-    AppAction Tick() override {return AppAction::cont;}
-    AppAction HandleEvent(SDL_Event &e) override {return AppAction::cont;}
-    void Deinit(bool failure) override {(void)failure;}
+
+    em::App::Action Tick() override
+    {
+        return em::App::Action::exit_success;
+    }
+
+    em::App::Action HandleEvent(SDL_Event &e) override
+    {
+        return em::App::Action::cont;
+    }
+
+    void Deinit(bool failure) override
+    {
+        (void)failure;
+    }
 };
 
-std::unique_ptr<em::AppModule> em::Main()
+std::unique_ptr<em::App::Module> em::Main()
 {
-    return std::make_unique<GameApp>();
+    return std::make_unique<App::ReflectedApp<GameApp>>();
 }

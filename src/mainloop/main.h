@@ -1,11 +1,11 @@
 #pragma once
 
-#include "mainloop/application.h"
+#include "mainloop/module.h"
 
 #include <memory>
 
 namespace em
 {
     // Define this in your main file. If this returns null, the main loop doesn't start.
-    std::unique_ptr<AppModule> Main();
+    std::unique_ptr<App::Module> Main();
 }

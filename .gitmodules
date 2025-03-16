@@ -7,3 +7,9 @@
 [submodule "deps/math"]
 	path = deps/math
 	url = https://github.com/HolyBlackCat/math
+[submodule "deps/reflection"]
+	path = deps/reflection
+	url = https://github.com/HolyBlackCat/reflection
+[submodule "deps/zstring_view"]
+	path = deps/zstring_view
+	url = https://github.com/HolyBlackCat/zstring_view

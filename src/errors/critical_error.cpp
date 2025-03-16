@@ -14,14 +14,16 @@ namespace em
     // By default this contains one function that logs the error to `stderr`.
     std::list<CriticalErrorHandler::Entry> CriticalErrorHandler::list = []{
         std::list<CriticalErrorHandler::Entry> ret;
-        ret.emplace_back([](std::string_view message)
+        ret.emplace_back([](zstring_view message)
         {
-            std::fprintf(stderr, "Critical error: %.*s\n", int(message.size()), message.data());
+            std::fprintf(stderr, "Critical error: %s\n", message.c_str());
         });
         return ret;
     }();
 
-    void CriticalError(std::string_view message)
+    // `message` MUST be null-terminated here.
+    // This would be `static`, but we must friend it in `CriticalErrorHandler` and you can't friend static functions.
+    [[noreturn]] void CriticalError(zstring_view message)
     {
         { // Handle this function being reentered.
             static std::atomic<std::thread::id> global_id{};
@@ -44,10 +46,6 @@ namespace em
                 }
             }
         }
-
-        // Trim the trailng newline, if any. Just in case.
-        if (message.ends_with('\n'))
-            message.remove_suffix(1);
 
         { // Run the handlers.
             std::lock_guard _(entries_mutex);

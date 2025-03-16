@@ -230,7 +230,7 @@ override all_libs :=
 # $2 is the URL to download the archive from (will download to `LIB_SRC_DIR` if not already there), or a filename relative to `LIB_SRC_DIR`.
 override Library = \
 	$(if $(filter-out 1,$(words $1)),$(error The library name must be a single word.))\
-	$(if $(filter-out 1,$(words $2)),$(error The library UTL must be a single word.))\
+	$(if $(filter-out 1,$(words $2)),$(error The library URL must be a single word.))\
 	$(call var,all_libs += $1)\
 	$(call var,__libsetting_url_$(strip $1) := $(strip $2))
 
@@ -796,6 +796,11 @@ $(__log_path_final): override __ar_name := $(__ar_name)
 $(__log_path_final): override __ar_path := $(__ar_path)
 $(__log_path_final): override __log_path_final := $(__log_path_final)
 $(__log_path_final): override __log_path := $(__log_path)
+
+$(__ar_path): override __has_url := $(__has_url)
+$(__ar_path): override __ar_name := $(__ar_name)
+$(__ar_path): override __ar_path := $(__ar_path)
+$(__ar_path): override __url_or_arpath := $(__url_or_arpath)
 
 # ^ NOTE: If adding any useful variable here, document then in `Variables available to build systems` below.
 
