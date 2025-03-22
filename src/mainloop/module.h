@@ -16,9 +16,7 @@ namespace em::App
     {
         virtual ~Module() = default;
 
-        virtual Action Init() {return Action::exit_success;}
         virtual Action Tick() {return Action::cont;}
         virtual Action HandleEvent(SDL_Event &e) {(void)e; return Action::cont;}
-        virtual void Deinit(bool failure) {(void)failure;}
     };
 }

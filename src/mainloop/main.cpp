@@ -14,10 +14,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     if (!app)
         return SDL_APP_SUCCESS;
 
-    auto init_result = app->Init();
     *appstate = app.release();
 
-    return SDL_AppResult(init_result);
+    return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate)
@@ -32,7 +31,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *e)
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
+    (void)result;
+
     // This is the only callback that can be reached with a null `appstate`.
-    if (appstate)
-        static_cast<em::App::Module *>(appstate)->Deinit(result != SDL_APP_SUCCESS);
+    delete static_cast<em::App::Module *>(appstate);
 }

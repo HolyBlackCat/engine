@@ -9,14 +9,8 @@
 struct GameApp : em::App::Module
 {
     EM_REFL(
-        (em::Modules::Sdl)(sdl)
+        (em::Sdl)(sdl, nullptr)
     )
-
-    em::App::Action Init() override
-    {
-        std::cout << "Hello!\n";
-        return em::App::Action::cont;
-    }
 
     em::App::Action Tick() override
     {
@@ -26,11 +20,6 @@ struct GameApp : em::App::Module
     em::App::Action HandleEvent(SDL_Event &e) override
     {
         return em::App::Action::cont;
-    }
-
-    void Deinit(bool failure) override
-    {
-        (void)failure;
     }
 };
 

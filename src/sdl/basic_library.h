@@ -1,29 +1,30 @@
 #pragma once
 
 #include "errors/critical_error.h"
-#include "mainloop/module.h"
 
 #include <fmt/format.h>
 #include <SDL3/SDL_init.h>
 
-namespace em::Modules
+namespace em
 {
-    class Sdl : public App::Module
+    // A RAII wrapper for initializing SDL.
+    // Also attaches an error handler to show errors as message boxes.
+    class Sdl
     {
-        bool initialized = false;
+        struct State
+        {
+            bool initialized = false;
 
-        CriticalErrorHandler error_handler;
-
-        void InitLib();
-        void ResetLib();
+            CriticalErrorHandler error_handler;
+        };
+        State state;
 
       public:
-        Sdl() {}
-        Sdl(const Sdl &) = delete;
-        Sdl &operator=(const Sdl &) = delete;
-        ~Sdl();
+        Sdl() {} // Constructs a null instance.
+        Sdl(std::nullptr_t); // Actually initializes the library.
 
-        App::Action Init() override;
-        void Deinit(bool failure) override;
+        Sdl(Sdl &&other) noexcept : state(std::move(other.state)) {state = {};}
+        Sdl &operator=(Sdl other) noexcept {std::swap(state, other.state); return *this;}
+        ~Sdl();
     };
 }
