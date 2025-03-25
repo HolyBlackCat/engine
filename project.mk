@@ -137,6 +137,18 @@ $(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/release-
 #   $(call LibrarySetting,deps,sdl3)
 # endif
 
+$(call Library,sdl_shadercross,https://github.com/libsdl-org/SDL_shadercross/archive/7c1c545fb2e2bc12b80c85ec49be3500dc751b20.zip)
+  $(call LibrarySetting,deps,spirv_cross)
+  # Disabling from-HLSL compilation, only keeping
+  $(call LibrarySetting,cmake_flags,-DSDLSHADERCROSS_DXC=OFF)
+
+$(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/1823c119c4d7311469199c1afecf2e255e26eb16.zip)
+  # Disabling tests for speed.
+  # Switching from static to dynamic libs just in case, in case we need to link it to our own app.
+  # Disabling CLI tools because we don't need them and because they need static libs.
+  $(call LibrarySetting,cmake_flags,-DSPIRV_CROSS_ENABLE_TESTS=OFF -DSPIRV_CROSS_SHARED=ON -DSPIRV_CROSS_STATIC=OFF -DSPIRV_CROSS_CLI=OFF)
+
+
 # $(call Library,stb,stb-31707d1-2024-10-03.zip)
 #   $(call LibrarySetting,build_system,copy_files)
 #   # Out of those, `rectpack` is used both by us and ImGui.

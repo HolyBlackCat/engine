@@ -145,11 +145,15 @@ override archive_classify_filename = $(firstword $(foreach x,$(archive_types),$(
 # Given archive filenames $1, returns them without extensions.
 # Essentially returns filename without extensions, and without the `lib` prefix. Can work with lists.
 # It's recursive to be able to handle `.tar.gz`, and so on.
-override strip_archive_extension = $(foreach x,$1,$(if $(call archive_classify_filename,$x),$(call strip_archive_extension,$(basename $x)),$(patsubst lib%,%,$x)))
+override archive_strip_ext = $(foreach x,$1,$(if $(call archive_classify_filename,$x),$(call archive_strip_ext,$(basename $x)),$x))
 
-archive_types :=
+# Given archive filenames $1, returns their archive extensions (or empty if not known archives).
+# This can return stuff like `.tar.gz` as a single extension.
+override archive_only_ext = $(foreach x,$1,$(if $(call archive_classify_filename,$x),$(call archive_only_ext,$(basename $x))$(suffix $x)))
+
 
 # Archive type definitions:
+archive_types :=
 
 # `archive_is-<type>` - given filename $1, should expand to a non-empty string if it's an archive of this type.
 # `archive_extract-<type>` - should expand to a command to extract archive $1 to directory $2.
@@ -232,7 +236,7 @@ override Library = \
 	$(if $(filter-out 1,$(words $1)),$(error The library name must be a single word.))\
 	$(if $(filter-out 1,$(words $2)),$(error The library URL must be a single word.))\
 	$(call var,all_libs += $1)\
-	$(call var,__libsetting_url_$(strip $1) := $(strip $2))
+	$(call var,__libsetting_url_or_path_$(strip $1) := $(strip $2))
 
 override all_lib_stubs :=
 # Defines a new library stub. Building it is a no-op, it's just a collection of flags.
@@ -766,9 +770,24 @@ override lib_cache_flags_low = $(if $($3),,$(call var,$3 := $(call $1,$2)))$($(3
 # Returns empty string on failure, or one of the names from `buildsystem_detection` variables on success.
 override id_build_system = $(word 2,$(subst ->, ,$(firstword $(filter $(patsubst $1/%,%->%,$(wildcard $1/*)),$(buildsystem_detection)))))
 
+# $1 is a library name. Returns non-empty if the library uses an url (as opposed to a hardcoded archive name).
+override lib_uses_url = $(if $(findstring ://,$(__libsetting_url_or_path_$1)),1)
+
+# Given library name $1 (or a list), returns a name that includes a version.
+# The part before the version can be different from the normal name, because this is taken from the archive name.
+# If the archive name is "dumb" (e.g. only a commit hash, as can happen when downloading commit zips from github),
+#   we prepend the library name to it. We also strip the `lib` prefix if any.
+override lib_name_to_name_version = $(foreach x,$1,$(call lib_name_to_name_version_low,$x,$(call archive_strip_ext,$(notdir $(__libsetting_url_or_path_$x)))))
+override lib_name_to_name_version_low = $(patsubst lib%,%,$(if $(findstring _,$2)$(findstring -,$2)$(findstring .,$2),$2,$1-$2))
+
+# Given library name $1 (or a list), outputs the archive path for it.
+# If the library isn't downloaded, this matches what the user has specified. Otherwise it begins with `$(LIB_SRC_DIR)`
+override lib_name_to_archive_path = $(foreach x,$1,$(if $(call lib_uses_url,$x),$(LIB_SRC_DIR)/$(call lib_name_to_name_version,$x)$(call archive_only_ext,$(__libsetting_url_or_path_$x)),$(__libsetting_url_or_path_$x)))
+
+
 # Given library name $1, returns the base directory for storing everything related to it (except for the source archive).
 # Can work with lists.
-override lib_name_to_base_dir = $(foreach x,$1,$(LIB_DIR)/$(call strip_archive_extension,$(notdir $(__libsetting_url_$x))))
+override lib_name_to_base_dir = $(foreach x,$1,$(LIB_DIR)/$(call lib_name_to_name_version,$x))
 
 # Given library name $1, returns the log path for it. Can work with lists.
 override lib_name_to_log_path = $(patsubst %,%/$(os_mode_string)/log.txt,$(call lib_name_to_base_dir,$1))
@@ -779,10 +798,8 @@ override lib_name_to_prefix = $(patsubst %,%/$(os_mode_string)/prefix,$(call lib
 # `$(__lib_name)` is the library name.
 override define codesnippet_library =
 # __lib_name = Library name
-$(call var,__url_or_arpath := $(__libsetting_url_$(__lib_name)))# Library URL or just the path to the archive.
-$(call var,__has_url := $(if $(findstring ://,$(__url_or_arpath)),1))# Do we have an URL? (as opposed to a file path)
-$(call var,__ar_name := $(notdir $(__url_or_arpath)))# Library archive name
-$(call var,__ar_path := $(if $(__has_url),$(LIB_SRC_DIR)/$(__ar_name),$(__url_or_arpath)))# Library archive path (after downloading if there is a URL, or direct otherwise)
+$(call var,__has_url := $(call lib_uses_url,$(__lib_name)))# Do we have an URL? (as opposed to a file path)
+$(call var,__ar_path := $(call lib_name_to_archive_path,$(__lib_name)))
 $(call var,__log_path_final := $(call lib_name_to_log_path,$(__lib_name)))# The final log path
 $(call var,__log_path := $(__log_path_final).unfinished)# Temporary log path for an unfinished log
 
@@ -792,15 +809,12 @@ $(if $(__bad_deps),$(error Unknown dependencies specified for `$(__lib_name)`: $
 
 # Forward the same variables to the target.
 $(__log_path_final): override __lib_name := $(__lib_name)
-$(__log_path_final): override __ar_name := $(__ar_name)
 $(__log_path_final): override __ar_path := $(__ar_path)
 $(__log_path_final): override __log_path_final := $(__log_path_final)
 $(__log_path_final): override __log_path := $(__log_path)
 
 $(__ar_path): override __has_url := $(__has_url)
-$(__ar_path): override __ar_name := $(__ar_name)
 $(__ar_path): override __ar_path := $(__ar_path)
-$(__ar_path): override __url_or_arpath := $(__url_or_arpath)
 
 # ^ NOTE: If adding any useful variable here, document then in `Variables available to build systems` below.
 
@@ -808,8 +822,8 @@ $(__ar_path): override __url_or_arpath := $(__url_or_arpath)
 .PHONY: download-lib-$(__lib_name)
 download-lib-$(__lib_name): $(__ar_path)
 $(__ar_path):
-	$(if $(__has_url),,$(error Can't download `$(__ar_name)`, no URL is specified))
-	$(call download_file,$(__url_or_arpath),$(__ar_path))
+	$(if $(__has_url),,$(error Can't download `$(notdir $(__ar_path))`, no URL is specified))
+	$(call download_file,$(__libsetting_url_or_path_$(__lib_name)),$(__ar_path))
 	@true
 
 # Destroys the downloaded source archive.
@@ -847,8 +861,8 @@ clean-lib-$(__lib_name)-this-os-this-mode:
 # Normally that doesn't happen, but once I've seen an error that could only be caused by it.
 $(__log_path_final): $(__ar_path) $(call lib_name_to_log_path,$(filter-out $(all_lib_stubs),$(__libsetting_deps_$(__lib_name))))
 	$(call, ### Firstly, detect archive type, and stop if unknown, to avoid creating junk.)
-	$(call var,__ar_type := $(call archive_classify_filename,$(__ar_name)))
-	$(if $(__ar_type),,$(error Don't know this archive extension: `$(__ar_name)`))
+	$(call var,__ar_type := $(call archive_classify_filename,$(__ar_path)))
+	$(if $(__ar_type),,$(error Don't know this archive extension: `$(notdir $(__ar_path))`))
 	$(call, ### Set variables. Note that the source dir is common for all build modes, to save space.)
 	$(call var,__source_dir := $(call lib_name_to_base_dir,$(__lib_name))/source)
 	$(call, ### We first extract the archive to this dir, then move the most nested subdir to __source_dir and delete this one.)
@@ -868,7 +882,7 @@ $(__log_path_final): $(__ar_path) $(call lib_name_to_log_path,$(filter-out $(all
 	$(call safe_shell_exec,mkdir -p $(call quote,$(__build_dir)))
 	$(call safe_shell_exec,mkdir -p $(call quote,$(__install_dir)))
 	$(call safe_shell_exec,mkdir -p $(call quote,$(dir $(__log_path_final))))
-	$(call log_now,[Library] >>> Extracting $(__ar_type) archive: $(__ar_name))
+	$(call log_now,[Library] >>> Extracting $(__ar_type) archive: $(notdir $(__ar_path)))
 	$(call safe_shell_exec,$(call archive_extract-$(__ar_type),$(__ar_path),$(__tmp_source_dir)))
 	$(call, ### Move the most-nested source dir to the proper location, then remove the remaining junk.)
 	$(call safe_shell_exec,mv $(call quote,$(call most_nested,$(__tmp_source_dir))$(if $(__libsetting_source_subdir_$(__lib_name)),/$(__libsetting_source_subdir_$(__lib_name)))) $(call quote,$(__source_dir)))
