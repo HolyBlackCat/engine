@@ -43,6 +43,8 @@ PROJ_CXXFLAGS += -Ideps/macros/include -Ideps/math/include -Ideps/meta/include -
 
 ifeq ($(TARGET_OS),windows)
 PROJ_LDFLAGS += $(_win_subsystem)
+# Need this at least for MinGW at the moment. Remove when updating libstdc++ to 15. Bug: https://github.com/llvm/llvm-project/issues/101614
+PROJ_CXXFLAGS += -fno-builtin-std-forward_like
 endif
 
 # The common PCH rules for all projects.
@@ -54,6 +56,11 @@ $(call ProjectSetting,cxxflags,-DDOCTEST_CONFIG_DISABLE)
 # $(call ProjectSetting,pch,$(_pch_rules))
 $(call ProjectSetting,libs,*)
 
+# Remove the linux-only flag on MinGW. SDL_shadercross is buggy and tries to insert this: https://github.com/libsdl-org/SDL_shadercross/issues/128
+ifeq ($(TARGET_OS),windows)
+$(call ProjectSetting,bad_lib_flags,-Wl$(comma)--enable-new-dtags)
+endif
+
 
 # --- Dependencies ---
 
@@ -61,12 +68,12 @@ $(call ProjectSetting,libs,*)
 #   pacman -S --needed mingw-w64-ucrt-x86_64-libiconv mingw-w64-ucrt-x86_64-vulkan
 # Additionally, following on Windows hosts as opposed to Quasi-MSYS2:
 #   pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf
-# Thoses lists are from https://packages.msys2.org/packages/mingw-w64-x86_64-SDL2, slightly modified.
-# Last updated for SDL 2.30.8-1, with the assumption that it's enough for SDL3.
+# Thoses lists are from https://packages.msys2.org/packages/mingw-w64-x86_64-sdl3 (minus gcc-libs).
+# Last updated for MSYS2 SDL 3.2.8-1.
 
 # On Arch, install following for SDL3 (from https://gitlab.archlinux.org/archlinux/packaging/packages/sdl2/-/blob/main/PKGBUILD)
-#   pacman -S --needed glibc libxext libxrender libx11 libgl libxcursor hidapi libusb alsa-lib mesa libpulse libxrandr libxinerama wayland libxkbcommon wayland-protocols ibus fcitx5 libxss cmake jack ninja pipewire libdecor
-# This list was last updated for SDL 2.30.8, with the assumption that it's enough for SDL3.
+#   pacman -S --needed alsa-lib cmake glibc hidapi ibus jack libdecor libgl libpulse libusb libx11 libxcursor libxext libxinerama libxkbcommon libxrandr libxrender libxss mesa ninja pipewire sndio vulkan-headers wayland wayland-protocols
+# This list was last updated for MSYS2 SDL 3.2.8.
 # Not sure if those allow all features to be build, but since we're not going to distribute Arch binaries anyway, it shouldn't matter.
 
 
@@ -133,14 +140,16 @@ $(call Library,fmt,https://github.com/fmtlib/fmt/releases/download/11.1.4/fmt-11
 $(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/release-3.2.8/SDL3-3.2.8.tar.gz)
   # Allow SDL to see system packages. If we were using `configure+make`, we'd need `configure_vars = env -uPKG_CONFIG_PATH -uPKG_CONFIG_LIBDIR` instead.
   $(call LibrarySetting,cmake_flags,-DCMAKE_FIND_USE_CMAKE_SYSTEM_PATH=ON)
+  $(call LibrarySetting,cmake_allow_using_system_deps,1)
 # $(call Library,sdl3_net,SDL2_net-2.2.0.tar.gz)
 #   $(call LibrarySetting,deps,sdl3)
 # endif
 
 $(call Library,sdl_shadercross,https://github.com/libsdl-org/SDL_shadercross/archive/7c1c545fb2e2bc12b80c85ec49be3500dc751b20.zip)
-  $(call LibrarySetting,deps,spirv_cross)
-  # Disabling from-HLSL compilation, only keeping
-  $(call LibrarySetting,cmake_flags,-DSDLSHADERCROSS_DXC=OFF)
+  $(call LibrarySetting,deps,sdl3 spirv_cross)
+  # Disabling HLSL input, only keeping SPIRV input.
+  # Enable installation, otherwise CMake installs nothing.
+  $(call LibrarySetting,cmake_flags,-DSDLSHADERCROSS_DXC=OFF -DSDLSHADERCROSS_INSTALL=ON)
 
 $(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/1823c119c4d7311469199c1afecf2e255e26eb16.zip)
   # Disabling tests for speed.

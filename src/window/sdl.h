@@ -40,5 +40,7 @@ namespace em
         Sdl(Sdl &&other) noexcept : state(std::move(other.state)) {state = {};}
         Sdl &operator=(Sdl other) noexcept {std::swap(state, other.state); return *this;}
         ~Sdl();
+
+        [[nodiscard]] explicit operator bool() const {return state.initialized;}
     };
 }

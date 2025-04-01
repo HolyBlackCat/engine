@@ -250,21 +250,22 @@ override LibraryStub = \
 # Known library setting names.
 # `archive` isn't here because it's set directly by `Library`.
 # `is_stub`,`stub_cflags`,`stub_lflags` aren't here because they're set directly by `LibraryStub`.
-override lib_setting_names := cflags cxxflags ldflags common_flags deps build_system cmake_flags configure_vars configure_flags copy_files bad_pkgconfig only_pkgconfig_files source_subdir
+override lib_setting_names := cflags cxxflags ldflags common_flags deps build_system cmake_flags configure_vars configure_flags copy_files bad_pkgconfig only_pkgconfig_files source_subdir cmake_allow_using_system_deps
 # On success, assigns $2 to variable `__libsetting_$1_<lib>`. Otherwise causes an error.
 # Settings are:
 # * {c,cxx,ld,common_}flags - per-library flag customization.
-# * deps - library dependencies, that this library will be allowed to see when building. A space-separated list of library names.
-# * build_system - override build system detection. Can be: `cmake`, `configure_make`, etc. See `id_build_system` below for the full list.
-# * cmake_flags - if CMake is used, those are passed to it. Probably should be a list of `-D<var>=<value>`.
-# * configure_vars - if configure+make is used, this is prepended to `configure` and `make`. This should be a list of `<var>=<value>`, but you could use `/bin/env` there too.
-# * configure_flags - if configure+make is used, this is passed to `./configure`.
-# * copy_files - if `copy_files` build system is used, this must be specified to describe what files/dirs to copy.
-#                Must be a space-separated list of `src->dst`, where `src` is relative to source and `dst` is relative to the install prefix. Both can be files or directories.
-# * bad_pkgconfig - if not empty (or 0), destroy the pkg-config files for the library. This causes us to fall back to the automatic flag detection.
-# * only_pkgconfig_files - if specified, use those pkgconfig files instead of all available ones. A space-separated list without extensions.
-# * source_subdir - if specified, use this subdirectory for the sources, instead of the top-level one (note that we automatically recurse
-#                   into lone directories even without this). This is needed if the build script is in a nested directory.
+# * deps                  - library dependencies, that this library will be allowed to see when building. A space-separated list of library names.
+# * build_system          - override build system detection. Can be: `cmake`, `configure_make`, etc. See `id_build_system` below for the full list.
+# * cmake_flags           - if CMake is used, those are passed to it. Probably should be a list of `-D<var>=<value>`.
+# * configure_vars        - if configure+make is used, this is prepended to `configure` and `make`. This should be a list of `<var>=<value>`, but you could use `/bin/env` there too.
+# * configure_flags       - if configure+make is used, this is passed to `./configure`.
+# * copy_files            - if `copy_files` build system is used, this must be specified to describe what files/dirs to copy.
+#                             Must be a space-separated list of `src->dst`, where `src` is relative to source and `dst` is relative to the install prefix. Both can be files or directories.
+# * bad_pkgconfig         - if not empty (or 0), destroy the pkg-config files for the library. This causes us to fall back to the automatic flag detection.
+# * only_pkgconfig_files  - if specified, use those pkgconfig files instead of all available ones. A space-separated list without extensions.
+# * source_subdir         - if specified, use this subdirectory for the sources, instead of the top-level one (note that we automatically recurse
+#                             into lone directories even without this). This is needed if the build script is in a nested directory.
+# * cmake_allow_using_system_deps - if set to 1 (or any non-0), if CMake is used, don't try to isolate it from the rest of the system. This will allow it to find dependencies in the system.
 override LibrarySetting = \
 	$(if $(filter-out $(lib_setting_names),$1)$(filter-out 1,$(words $1)),$(error Invalid library setting `$1`, expected one of: $(lib_setting_names)))\
 	$(if $(filter 0,$(words $(all_libs))),$(error Must specify library settings after a library))\
@@ -1400,6 +1401,32 @@ else
 cmake_host_sep := ;
 endif
 
+# Removed CMake settings:
+#
+# 1. No longer needed since PATH-based library search got removed as described here: https://gitlab.kitware.com/cmake/cmake/-/issues/24216
+# If you add this back, also set `CMAKE_BUILD_TOOL=ninja` Make variable, or something.
+#     $(call, ### On Windows hosts, ignore PATH completely. Windows hosts are unusual in that they find not only executables,)\
+#     $(call, ### but also libraries in the prefixes that have their `bin` directories added to PATH. This is issue https://gitlab.kitware.com/cmake/cmake/-/issues/24036)\
+#     $(call, ### Disabling this also stops CMake from finding any programs in PATH. We compensate by setting `CMAKE_PROGRAM_PATH`,)\
+#     $(call, ### but it's ignored for Binutils search, and possibly others. But for those, CMake magically searches the `bin` directory of the specified compiler.)\
+#     $(call, ### On Quasi-MSYS2 it causes CMake to be unable to find AR and others, since the compiler is stored separately, but on Windows it's not a problem.)\
+#     $(if $(filter windows,$(HOST_OS)),-DCMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH=OFF -DCMAKE_PROGRAM_PATH=$(call quote,$(subst :,$(cmake_host_sep),$(PATH))))\
+#     $(call, ### This is needed because of `-DCMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH=OFF`.)\
+#     $(if $(CMAKE_BUILD_TOOL),-DCMAKE_MAKE_PROGRAM=$(call quote,$(CMAKE_BUILD_TOOL)))\
+# 2. No longer needed because I figured out I can pass a custom `CMAKE_FIND_ROOT_PATH`, and have the toolchain file append to it rather than overwrite.
+#     $(call, ### This is only useful when cross-compiling, to undo the effects of CMAKE_FIND_ROOT_PATH in a toolchain file, which otherwise restricts library search to that path.)\
+#     $(call, ### We set the value to /, except on Windows hosts, where it's set to the drive letter, since the plain slash doesn't work.)\
+#     $(call, ### This also resets the install path, so we need to specify it again with installing.)\
+#     -DCMAKE_STAGING_PREFIX=$(if $(filter windows,$(HOST_OS)),$(firstword $(subst \, ,$(call safe_shell,cygpath -w $(call quote,$(CURDIR))))),/)\
+# 3. I replaced those with the new FIND_ROOT_PATH-based flags.
+#     $(call, ### I'm not sure why abspath is needed here, but stuff doesn't work otherwise. Tested on libvorbis depending on libogg.)\
+#     $(call, ### Note the fancy logic that attempts to support spaces in paths.)\
+#     -DCMAKE_PREFIX_PATH=$(call quote,$(abspath $(__install_dir))$(subst $(space)$(cmake_host_sep),$(cmake_host_sep),$(foreach x,$(call lib_name_to_prefix,$(__libsetting_deps_$(__lib_name))),$(cmake_host_sep)$(abspath $x))))\
+#     $(call, ### Prevent CMake from finding system packages. Tested on freetype2, which finds system zlib otherwise.)\
+#     $(call, ### Note: this disables various ..._SYSTEM_..., variables, so we can't use those, even though they would be more appropriate otherwise.)\
+#     $(call, ### We can't not disable those, enabling this seems to add parents of PATH directories to the prefixes, and so on.)\
+#     -DCMAKE_FIND_USE_CMAKE_SYSTEM_PATH=OFF\
+
 override buildsystem-cmake = \
 	$(call log_now,[Library] >>> Configuring CMake...)\
 	$(call, ### Add dependency include directories to compiler flags. Otherwise OpenAL can't find SDL2.)\
@@ -1424,29 +1451,18 @@ override buildsystem-cmake = \
 		$(call, ### Specifying an invalid build type disables built-in flags.)\
 		-DCMAKE_BUILD_TYPE=Custom\
 		-DCMAKE_INSTALL_PREFIX=$(call quote,$(__install_dir))\
-		$(call, ### Fedora installs to `lib64` by default, which breaks our stuff. Apparently everyone except Debian does it, maybe we should too? Hmm.)\
+		$(call, ### Fedora installs to `lib64` by default, which breaks our stuff. Hmm.)\
 		$(call, ### Some libraries that don't install anything warn about this flag being unused.)\
 		$(call, ### I don't see any workaround though, short of switching to `lib64` ourselves, since setting the `LIBDIR` environment variable has no effect.)\
 		-DCMAKE_INSTALL_LIBDIR=lib\
-		$(call, ### I'm not sure why abspath is needed here, but stuff doesn't work otherwise. Tested on libvorbis depending on libogg.)\
-		$(call, ### Note the fancy logic that attempts to support spaces in paths.)\
-		-DCMAKE_PREFIX_PATH=$(call quote,$(abspath $(__install_dir))$(subst $(space)$(cmake_host_sep),$(cmake_host_sep),$(foreach x,$(call lib_name_to_prefix,$(__libsetting_deps_$(__lib_name))),$(cmake_host_sep)$(abspath $x))))\
-		$(call, ### Prevent CMake from finding system packages. Tested on freetype2, which finds system zlib otherwise.)\
-		$(call, ### Note: this disables various ..._SYSTEM_..., variables, so we can't use those, even though they would be more appropriate otherwise.)\
-		$(call, ### We can't not disable those, enabling this seems to add parents of PATH directories to the prefixes, and so on.)\
-		-DCMAKE_FIND_USE_CMAKE_SYSTEM_PATH=OFF\
-		$(call, ### This is only useful when cross-compiling, to undo the effects of CMAKE_FIND_ROOT_PATH in a toolchain file, which otherwise restricts library search to that path.)\
-		$(call, ### We set the value to /, except on Windows hosts, where it's set to the drive letter, since the plain slash doesn't work.)\
-		$(call, ### This also resets the install path, so we need to specify it again with installing.)\
-		-DCMAKE_STAGING_PREFIX=$(if $(filter windows,$(HOST_OS)),$(firstword $(subst \, ,$(call safe_shell,cygpath -w $(call quote,$(CURDIR))))),/)\
-		$(call, ### On Windows hosts, ignore PATH completely. Windows hosts are unusual in that they find not only executables,)\
-		$(call, ### but also libraries in the prefixes that have their `bin` directories added to PATH. This is issue https://gitlab.kitware.com/cmake/cmake/-/issues/24036)\
-		$(call, ### Disabling this also stops CMake from finding any programs in PATH. We compensate by setting `CMAKE_PROGRAM_PATH`,)\
-		$(call, ### but it's ignored for Binutils search, and possibly others. But for those, CMake magically searches the `bin` directory of the specified compiler.)\
-		$(call, ### On Quasi-MSYS2 it causes CMake to be unable to find AR and others, since the compiler is stored separately, but on Windows it's not a problem.)\
-		$(if $(filter windows,$(HOST_OS)),-DCMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH=OFF -DCMAKE_PROGRAM_PATH=$(call quote,$(subst :,$(cmake_host_sep),$(PATH))))\
-		$(call, ### This is needed because of `-DCMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH=OFF`.)\
-		$(if $(CMAKE_BUILD_TOOL),-DCMAKE_MAKE_PROGRAM=$(call quote,$(CMAKE_BUILD_TOOL)))\
+		$(call, ### Isolate dependency search from the rest of the system, if not disabled.)\
+		$(if $(filter-out 0,$(__libsetting_cmake_allow_using_system_deps_$(__lib_name))),,\
+			$(call, ### Specify custom find paths. A custom toolchain file can overwrite this variable, but good toolchain files won't.)\
+			$(call, ### They're supposed to append to it instead.)\
+			-DCMAKE_FIND_ROOT_PATH=$(call quote,$(if $(__libsetting_deps_$(__lib_name)),$(subst <__BeginFindRootPath__>$(cmake_host_sep),,$(subst $(space)$(cmake_host_sep),$(cmake_host_sep),<__BeginFindRootPath__>$(foreach x,$(call lib_name_to_prefix,$(__libsetting_deps_$(__lib_name))),$(cmake_host_sep)$(abspath $x))))))\
+			$(call, ### Set the `ROOT_PATH` modes. If you use a toolchain file, it probably sets all the same flags.)\
+			-DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY\
+		)\
 		$(if $(CMAKE_GENERATOR),$(call quote,-G$(CMAKE_GENERATOR)))\
 		$(__libsetting_cmake_flags_$(__lib_name))\
 		>>$(call quote,$(__log_path))\
