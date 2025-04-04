@@ -177,6 +177,9 @@ namespace em::Gpu
                 }
             }
 
+            sdl_params.target_info.color_target_descriptions = sdl_color_targets.data();
+            sdl_params.target_info.num_color_targets = std::uint32_t(sdl_color_targets.size());
+
 
             if (params.targets.depth_stencil_format)
             {

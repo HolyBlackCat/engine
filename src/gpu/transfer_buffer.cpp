@@ -2,7 +2,7 @@
 
 #include "gpu/buffer.h"
 #include "gpu/device.h"
-#include "gpu/passes.h"
+#include "gpu/copy_pass.h"
 
 #include <fmt/format.h>
 #include <SDL3/SDL_gpu.h>

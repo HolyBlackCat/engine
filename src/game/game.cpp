@@ -2,8 +2,9 @@
 #include "gpu/buffer.h"
 #include "gpu/command_buffer.h"
 #include "gpu/device.h"
-#include "gpu/passes.h"
+#include "gpu/copy_pass.h"
 #include "gpu/pipeline.h"
+#include "gpu/render_pass.h"
 #include "gpu/shader.h"
 #include "gpu/transfer_buffer.h"
 #include "mainloop/main.h"
@@ -89,16 +90,32 @@ struct GameApp : App::Module
 
     App::Action Tick() override
     {
-        Gpu::CommandBuffer buffer(gpu);
-        Gpu::Texture swapchain_tex = buffer.WaitAndAcquireSwapchainTexture(window);
+        Gpu::CommandBuffer cmdbuf(gpu);
+        Gpu::Texture swapchain_tex = cmdbuf.WaitAndAcquireSwapchainTexture(window);
+        Gpu::RenderPass rp(cmdbuf, Gpu::RenderPass::Params{
+            .color_targets = {
+                Gpu::RenderPass::ColorTarget{
+                    .texture = {
+                        .texture = &swapchain_tex,
+                    },
+                },
+            },
+        });
+
         if (!swapchain_tex)
         {
             std::cout << "No swapchain texture, probably the window is minimized\n";
-            buffer.CancelWhenDestroyed();
+            cmdbuf.CancelWhenDestroyed();
             return App::Action::cont; // No draw target.
         }
 
         fmt::println("Swapchain texture has size: [{},{},{}]", swapchain_tex.Size().x, swapchain_tex.Size().y, swapchain_tex.Size().z);
+
+        rp.BindPipeline(pipeline);
+        rp.BindVertexBuffers({{Gpu::RenderPass::VertexBuffer{
+            .buffer = &buffer,
+        }}});
+        rp.DrawPrimitives(3);
 
         return App::Action::cont;
     }
