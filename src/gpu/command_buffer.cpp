@@ -1,6 +1,7 @@
 #include "command_buffer.h"
 
 #include "gpu/device.h"
+#include "gpu/fence.h"
 #include "window/window.h"
 
 #include <fmt/format.h>
@@ -11,14 +12,15 @@
 
 namespace em::Gpu
 {
-    CommandBuffer::CommandBuffer(Device &device)
+    CommandBuffer::CommandBuffer(Device &device, Fence *output_fence)
         : CommandBuffer() // Ensure cleanup on throw.
     {
+        state.output_fence = output_fence;
+        state.num_active_exceptions = std::uncaught_exceptions();
+
         state.buffer = SDL_AcquireGPUCommandBuffer(device.Handle());
         if (!state.buffer)
             throw std::runtime_error(fmt::format("Unable to acquire a GPU command buffer: {}", SDL_GetError()));
-
-        state.num_active_exceptions = std::uncaught_exceptions();
     }
 
     CommandBuffer::CommandBuffer(CommandBuffer &&other) noexcept
@@ -44,8 +46,18 @@ namespace em::Gpu
             }
             else
             {
-                if (!SDL_SubmitGPUCommandBuffer(state.buffer))
-                    throw std::runtime_error(fmt::format("Unable to submit a GPU command buffer: {}", SDL_GetError()));
+                if (state.output_fence)
+                {
+                    SDL_GPUFence *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(state.buffer);
+                    if (!fence)
+                        throw std::runtime_error(fmt::format("Unable to submit a GPU command buffer and acquire a fence: {}", SDL_GetError()));
+                    *state.output_fence = Fence(Fence::TakeOwnershipOfExistingFence{}, state.device, fence);
+                }
+                else
+                {
+                    if (!SDL_SubmitGPUCommandBuffer(state.buffer))
+                        throw std::runtime_error(fmt::format("Unable to submit a GPU command buffer: {}", SDL_GetError()));
+                }
             }
         }
     }

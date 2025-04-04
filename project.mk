@@ -62,6 +62,17 @@ $(call ProjectSetting,bad_lib_flags,-Wl$(comma)--enable-new-dtags)
 endif
 
 
+# Shader compilation:
+ASSETS_IGNORED_PATTERNS += *.glsl
+ASSETS_GENERATED += $(patsubst %.glsl,%.spv,$(wildcard assets/assets/shaders/*.glsl))
+assets/%.vert.spv: assets/%.vert.glsl
+	$(call log_now,[GLSL Vertex] $<)
+	@glslc -fshader-stage=vert $< -o $@ -O
+assets/%.frag.spv: assets/%.frag.glsl
+	$(call log_now,[GLSL Fragment] $<)
+	@glslc -fshader-stage=frag $< -o $@ -O
+
+
 # --- Dependencies ---
 
 # On Windows, install following for SDL3:
@@ -138,8 +149,6 @@ $(call Library,fmt,https://github.com/fmtlib/fmt/releases/download/11.1.4/fmt-11
 #   $(call LibrarySetting,copy_files,$(_win_sdl3_arch)/*->.)
 # else
 $(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/release-3.2.8/SDL3-3.2.8.tar.gz)
-  # Allow SDL to see system packages. If we were using `configure+make`, we'd need `configure_vars = env -uPKG_CONFIG_PATH -uPKG_CONFIG_LIBDIR` instead.
-  $(call LibrarySetting,cmake_flags,-DCMAKE_FIND_USE_CMAKE_SYSTEM_PATH=ON)
   $(call LibrarySetting,cmake_allow_using_system_deps,1)
 # $(call Library,sdl3_net,SDL2_net-2.2.0.tar.gz)
 #   $(call LibrarySetting,deps,sdl3)
@@ -156,6 +165,11 @@ $(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/1
   # Switching from static to dynamic libs just in case, in case we need to link it to our own app.
   # Disabling CLI tools because we don't need them and because they need static libs.
   $(call LibrarySetting,cmake_flags,-DSPIRV_CROSS_ENABLE_TESTS=OFF -DSPIRV_CROSS_SHARED=ON -DSPIRV_CROSS_STATIC=OFF -DSPIRV_CROSS_CLI=OFF)
+
+$(call Library,spirv_reflect,https://github.com/KhronosGroup/SPIRV-Reflect/archive/c637858562fbce1b6f5dc7ca48d4e8a5bd117b70.zip)
+  # Disable the executable and enable the library. They only support a static library, whatever.
+  $(call LibrarySetting,cmake_flags,-DSPIRV_REFLECT_EXECUTABLE=OFF -DSPIRV_REFLECT_STATIC_LIB=ON)
+  $(call LibrarySetting,install_files,spirv_reflect.h->include)
 
 
 # $(call Library,stb,stb-31707d1-2024-10-03.zip)

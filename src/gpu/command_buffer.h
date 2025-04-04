@@ -13,6 +13,7 @@ namespace em
 namespace em::Gpu
 {
     class Device;
+    class Fence;
 
     // All rendering starts here. You need a new one every frame.
     // Each thread needs its own buffer, and you can have more than one buffer per thread.
@@ -29,13 +30,20 @@ namespace em::Gpu
 
             bool cancel_when_destroyed = false;
             int num_active_exceptions = 0;
+
+            // When submitting, we'll fill this fence.
+            // We have to rely on it staying alive until then.
+            Fence *output_fence = nullptr;
         };
         State state;
 
       public:
         constexpr CommandBuffer() {}
 
-        CommandBuffer(Device &device);
+        // If the `output_fence` is specified, will set it during destruction if we're not cancelling.
+        // We have to set the fence pointer beforehand, instead of having an "execute" function returning it, because all of our passes use destructors
+        //   to end the actual passes, and that would cause order conflicts if command lists were instead submitted by function calls.
+        CommandBuffer(Device &device, Fence *output_fence = nullptr);
 
         CommandBuffer(CommandBuffer &&other) noexcept;
         CommandBuffer &operator=(CommandBuffer other) noexcept;

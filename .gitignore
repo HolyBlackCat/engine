@@ -16,3 +16,6 @@ imgui.ini
 
 # Valgrind dumps.
 vgcore.*
+
+# Compiled shaders.
+*.spv

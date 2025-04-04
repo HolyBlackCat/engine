@@ -250,7 +250,7 @@ override LibraryStub = \
 # Known library setting names.
 # `archive` isn't here because it's set directly by `Library`.
 # `is_stub`,`stub_cflags`,`stub_lflags` aren't here because they're set directly by `LibraryStub`.
-override lib_setting_names := cflags cxxflags ldflags common_flags deps build_system cmake_flags configure_vars configure_flags copy_files bad_pkgconfig only_pkgconfig_files source_subdir cmake_allow_using_system_deps
+override lib_setting_names := cflags cxxflags ldflags common_flags deps build_system cmake_flags configure_vars configure_flags install_files bad_pkgconfig only_pkgconfig_files source_subdir cmake_allow_using_system_deps
 # On success, assigns $2 to variable `__libsetting_$1_<lib>`. Otherwise causes an error.
 # Settings are:
 # * {c,cxx,ld,common_}flags - per-library flag customization.
@@ -259,8 +259,8 @@ override lib_setting_names := cflags cxxflags ldflags common_flags deps build_sy
 # * cmake_flags           - if CMake is used, those are passed to it. Probably should be a list of `-D<var>=<value>`.
 # * configure_vars        - if configure+make is used, this is prepended to `configure` and `make`. This should be a list of `<var>=<value>`, but you could use `/bin/env` there too.
 # * configure_flags       - if configure+make is used, this is passed to `./configure`.
-# * copy_files            - if `copy_files` build system is used, this must be specified to describe what files/dirs to copy.
-#                             Must be a space-separated list of `src->dst`, where `src` is relative to source and `dst` is relative to the install prefix. Both can be files or directories.
+# * install_files         - Install additional files. Must be a space-separated list of `src->dst`, where `src` is relative to source and `dst` is relative to the install prefix. Both can be files or directories.
+#                             If you ONLY need to copy the files, set the build system to `dummy`.
 # * bad_pkgconfig         - if not empty (or 0), destroy the pkg-config files for the library. This causes us to fall back to the automatic flag detection.
 # * only_pkgconfig_files  - if specified, use those pkgconfig files instead of all available ones. A space-separated list without extensions.
 # * source_subdir         - if specified, use this subdirectory for the sources, instead of the top-level one (note that we automatically recurse
@@ -425,12 +425,6 @@ WINDRES_FLAGS := -O res
 # Only $2 needs to be quoted.
 MAKE_STATIC_LIB = ar rvc $(call quote,$1) $2
 
-# Prevent pkg-config from finding external packages.
-# Note the stupid `-` signs. Fedora's stupid `pkg-config` is a stupid shell script that sets those to fallback values if they're unset OR EMPTY.
-override PKG_CONFIG_PATH := -
-export PKG_CONFIG_PATH
-override PKG_CONFIG_LIBDIR := -
-export PKG_CONFIG_LIBDIR
 
 MODE :=# Build mode. Set to `generic` to not add any custom flags.
 APP :=# Target project
@@ -528,6 +522,11 @@ endif
 # Note that any matching files that were already copied are not deleted (unlike files not existing in the source), since it's easier to do it this way.
 # If you add any new patterns, you need to manually clean copied assets.
 ASSETS_IGNORED_PATTERNS := _*
+
+# Those can point to files in `ASSETS` directories that need to be generated before being copied.
+# There must be recipes for them.
+ASSETS_GENERATED :=
+
 
 DISABLED_LANGS :=
 ifneq ($(TARGET_OS),windows)
@@ -694,7 +693,7 @@ override lib_add_deps_low = $(if $(filter $1,$(__lib_add_deps_ret)),,$(call var,
 
 # Expands to `pkg-config` with the proper config variables.
 # $1 is a list of libraries to add to the search path (we automatically add their dependencies).
-# See the definion of `PKG_CONFIG_PATH` above for why we set it to a `-` rather than nothing.
+# Note the stupid `-` signs. Fedora's stupid `pkg-config` is a stupid shell script that sets those to fallback values if they're unset OR EMPTY.
 override lib_invoke_pkgconfig = PKG_CONFIG_PATH=- PKG_CONFIG_LIBDIR=$(call quote,$(subst $(space),:,$(foreach x,$(call lib_add_deps,$1),$(call lib_name_to_base_dir,$x)/$(os_mode_string)/prefix/lib/pkgconfig))) pkg-config --define-prefix
 
 # Given a library name `$1`, returns the pkg-config package names for it.
@@ -901,6 +900,18 @@ $(__log_path_final): $(__ar_path) $(call lib_name_to_log_path,$(filter-out $(all
 	$(call safe_shell_exec,cp -rT $(call quote,$(__install_dir)/share/pkgconfig) $(call quote,$(__install_dir)/lib/pkgconfig) 2>/dev/null || true)
 	$(call, ### * Nuke the pkgconfig files, if requested. At least freetype+cmake generates broken files.)
 	$(if $(filter-out 0,$(__libsetting_bad_pkgconfig_$(__lib_name))),$(call safe_shell_exec,find -name '*.pc' -delete))
+	$(call, ### Install additional files if required.)\
+	$(if $(__libsetting_install_files_$(__lib_name)),\
+		$(call log_now,[Library] >>> Copying files...)\
+		$(call, ### Actually copy the files.)\
+		$(foreach x,$(__libsetting_install_files_$(__lib_name)),\
+			$(call var,__install_file_target := $(call quote,$(__install_dir)/$(word 2,$(subst ->, ,$x))))\
+			$(call var,__install_file_source := $(wildcard $(__source_dir)/$(word 1,$(subst ->, ,$x))))\
+			$(if $(__install_file_source),,$(error Unable to find the file to install: $(__source_dir)/$(word 1,$(subst ->, ,$x))))\
+			$(call safe_shell_exec,mkdir -p $(__install_file_target))\
+			$(call safe_shell_exec,cp -r $(__install_file_source) $(__install_file_target))\
+		)\
+	)\
 	$(call, ### Delete the build tree, if needed.)
 	$(if $(KEEP_BUILD_TREES),,$(call safe_shell_exec,rm -rf $(call quote,$(__build_dir))))
 	$(call, ### On success, move the log to the right location.)
@@ -1241,7 +1252,7 @@ override copy_assets_and_libs_to = \
 
 # Copies libraries and `ASSETS` to the current bin directory, ignoring any files matching `ASSETS_IGNORED_PATTERNS`.
 .PHONY: sync-libs-and-assets
-sync-libs-and-assets: $(call lib_name_to_log_path,$(all_libs))
+sync-libs-and-assets: $(call lib_name_to_log_path,$(all_libs)) $(ASSETS_GENERATED)
 	$(call copy_assets_and_libs_to,$(BIN_DIR)/$(os_mode_string),1)
 	@true
 
@@ -1378,20 +1389,9 @@ prepare-for-storage: clean-everything
 # * If you want to, modify `buildsystem_detection` above to auto-detect your build system.
 
 # Copies the files you tell it to copy.
-# Must specify the `copy_files` setting, which is a space-separated list of `pattern->dir`,
+# Must specify the `install_files` setting, which is a space-separated list of `pattern->dir`,
 # where `pattern` is relative to the source directory and can contain `*`, and `dir` is the target directory relative to the installation prefix.
-override buildsystem-copy_files = \
-	$(call log_now,[Library] >>> Copying files...)\
-	$(call, ### Make sure we know what files to copy.)\
-	$(if $(__libsetting_copy_files_$(__lib_name)),,$(error Must specify the `copy_files` setting for the `copy_files` build system))\
-	$(call, ### Actually copy the files.)\
-	$(foreach x,$(__libsetting_copy_files_$(__lib_name)),\
-		$(call var,__bs_target := $(call quote,$(__install_dir)/$(word 2,$(subst ->, ,$x))))\
-		$(call safe_shell_exec,mkdir -p $(__bs_target))\
-		$(call safe_shell_exec,cp -r $(wildcard $(__source_dir)/$(word 1,$(subst ->, ,$x))) $(__bs_target))\
-	)\
-	$(call, ### Destroy the original extracted directory to save space.)\
-	$(call safe_shell_exec,rm -rf $(call quote,$(__source_dir)))\
+override buildsystem-dummy = \
 	$(file >$(__log_path),)
 
 # List separator for CMake. This does indeed look backwards.
@@ -1435,13 +1435,17 @@ override buildsystem-cmake = \
 	$(call var,__bs_cflags := $(combined_global_cflags) $(__libsetting_common_flags_$(__lib_name)) $(__libsetting_cflags_$(__lib_name)) $(__bs_include_paths))\
 	$(call var,__bs_cxxflags := $(combined_global_cxxflags) $(__libsetting_common_flags_$(__lib_name)) $(__libsetting_cxxflags_$(__lib_name)) $(__bs_include_paths))\
 	$(call var,__bs_ldflags := $(combined_global_ldflags) $(__libsetting_common_flags_$(__lib_name)) $(__libsetting_ldflags_$(__lib_name)))\
+	$(call var,__bs_allow_sys_libs := $(filter-out 0,$(__libsetting_cmake_allow_using_system_deps_$(__lib_name))))\
 	$(call safe_shell_exec,\
 		$(call, ### Using the env variables instead of the CMake variables to silence the unused variable warnings. Also this is less verbose.)\
 		CC=$(call quote,$(CC)) CXX=$(call quote,$(CXX))\
 		CFLAGS=$(call quote,$(__bs_cflags)) CXXFLAGS=$(call quote,$(__bs_cxxflags)) LDFLAGS=$(call quote,$(__bs_ldflags))\
-		$(call, ### Resetting the pkg-config variables here prevents freetype from finding the system harfbuzz, and possibly more.)\
-		$(call, ### See their definitions above in this makefile for why we set them to `-` rather than empty strings.)\
-		PKG_CONFIG_PATH=- PKG_CONFIG_LIBDIR=- \
+		$(if $(__bs_allow_sys_libs),,\
+			$(call, ### Resetting the pkg-config variables here prevents freetype from finding the system harfbuzz, and possibly more.)\
+			$(call, ### See their definitions above in this makefile for why we set them to `-` rather than empty strings.)\
+			$(call, ### Maybe we'll need those to point to our deps eventually, but now things work fine without that.)\
+			PKG_CONFIG_PATH=- PKG_CONFIG_LIBDIR=- \
+		)\
 		cmake\
 		-S $(call quote,$(__source_dir))\
 		-B $(call quote,$(__build_dir))\
@@ -1456,7 +1460,7 @@ override buildsystem-cmake = \
 		$(call, ### I don't see any workaround though, short of switching to `lib64` ourselves, since setting the `LIBDIR` environment variable has no effect.)\
 		-DCMAKE_INSTALL_LIBDIR=lib\
 		$(call, ### Isolate dependency search from the rest of the system, if not disabled.)\
-		$(if $(filter-out 0,$(__libsetting_cmake_allow_using_system_deps_$(__lib_name))),,\
+		$(if $(__bs_allow_sys_libs),,\
 			$(call, ### Specify custom find paths. A custom toolchain file can overwrite this variable, but good toolchain files won't.)\
 			$(call, ### They're supposed to append to it instead.)\
 			-DCMAKE_FIND_ROOT_PATH=$(call quote,$(if $(__libsetting_deps_$(__lib_name)),$(subst <__BeginFindRootPath__>$(cmake_host_sep),,$(subst $(space)$(cmake_host_sep),$(cmake_host_sep),<__BeginFindRootPath__>$(foreach x,$(call lib_name_to_prefix,$(__libsetting_deps_$(__lib_name))),$(cmake_host_sep)$(abspath $x))))))\
@@ -1474,14 +1478,17 @@ override buildsystem-cmake = \
 	$(call safe_shell_exec,cmake --install $(call quote,$(__build_dir)) --prefix $(call quote,$(__install_dir)) >>$(call quote,$(__log_path)))\
 
 override buildsystem-configure_make = \
+	$(call var,__bs_allow_sys_libs := $(filter-out 0,$(__libsetting_cmake_allow_using_system_deps_$(__lib_name))))\
 	$(call, ### A list of env variables we use. Note explicit pkg-config stuff. At least freetype needs it, and fails to find pkgconfig files in the prefix otherwise.)\
 	$(call, ### Note that we only need to set prefix for this single library, since we copy all dependencies here anyway.)\
 	$(call var,__bs_shell_vars := $(foreach f,CC CXX CPP LD CPPFLAGS,$f=$(call quote,$($f))) \
 		CFLAGS=$(call quote,$(combined_global_cflags) $(__libsetting_common_flags_$(__lib_name)) $(__libsetting_cflags_$(__lib_name))) \
 		CXXFLAGS=$(call quote,$(combined_global_cxxflags) $(__libsetting_common_flags_$(__lib_name)) $(__libsetting_cxxflags_$(__lib_name))) \
 		LDFLAGS=$(call quote,$(combined_global_ldflags) $(__libsetting_common_flags_$(__lib_name)) $(__libsetting_ldflags_$(__lib_name))) \
-		$(call, ### See the definion of `PKG_CONFIG_PATH` above for why we set it to a minus sign rather than nothing.)\
-		PKG_CONFIG_PATH='-' PKG_CONFIG_LIBDIR=$(call quote,$(abspath $(__install_dir)/lib/pkgconfig)) $(__libsetting_configure_vars_$(__lib_name)) \
+		$(if $(__bs_allow_sys_libs),,\
+			$(call, ### See the definion of `PKG_CONFIG_PATH` above for why we set it to a minus sign rather than nothing.)\
+			PKG_CONFIG_PATH='-' PKG_CONFIG_LIBDIR=$(call quote,$(abspath $(__install_dir)/lib/pkgconfig)) $(__libsetting_configure_vars_$(__lib_name)) \
+		)\
 	)\
 	$(call, ### Since we can't configure multiple search prefixes, like we do with CMAKE_SYSTEM_PREFIX_PATH,)\
 	$(call, ### we copy the prefixes of our dependencies to our own prefix.)\

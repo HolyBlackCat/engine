@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 
 typedef struct SDL_GPUDevice SDL_GPUDevice;
 
@@ -14,13 +13,20 @@ namespace em::Gpu
         struct State
         {
             SDL_GPUDevice *device = nullptr;
+            bool debug_mode_enabled = false;
         };
         State state;
 
       public:
         constexpr Device() {}
 
-        Device(std::nullptr_t);
+        struct Params
+        {
+            // If true, on Windows fall back to a software Vulkan implementation that is shipped with Edge (and all other chrome-based browsers).
+            bool fallback_to_software_rendering = true;
+        };
+
+        Device(const Params &params);
 
         Device(Device &&other) noexcept;
         Device &operator=(Device other) noexcept;
@@ -28,5 +34,7 @@ namespace em::Gpu
 
         [[nodiscard]] explicit operator bool() const {return bool(state.device);}
         [[nodiscard]] SDL_GPUDevice *Handle() {return state.device;}
+
+        [[nodiscard]] bool DebugModeEnabled() const {return state.debug_mode_enabled;}
     };
 }
