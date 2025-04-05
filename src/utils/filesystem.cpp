@@ -29,7 +29,7 @@ namespace em::Filesystem
             /*source encoding:*/CP_UTF8,
             /*flags:*/MB_ERR_INVALID_CHARS, // Fail on invalid input.
             /*input:*/input.c_str(),
-            /*input size:*/input.size() + 1, // Must include the null terminator here if we want it in the output.
+            /*input size:*/int(input.size() + 1), // Must include the null terminator here if we want it in the output.
             /*output:*/nullptr,
             /*output size:*/0
         );
@@ -43,11 +43,11 @@ namespace em::Filesystem
             /*source encoding:*/CP_UTF8,
             /*flags:*/MB_ERR_INVALID_CHARS, // Fail on invalid input.
             /*input:*/input.c_str(),
-            /*input size:*/input.size() + 1, // Must include the null terminator here if we want it in the output.
+            /*input size:*/int(input.size() + 1), // Must include the null terminator here if we want it in the output.
             /*output:*/ret.data(),
-            /*output size:*/ret.size() + 1 // The string additionally has space for the null-terminator.
+            /*output size:*/int(ret.size() + 1) // The string additionally has space for the null-terminator.
         );
-        if (!out_size)
+        if (result != out_size)
             throw std::runtime_error("Unable to convert UTF-8 string to UTF-16, maybe invalid encoding in input? The initial size calculation passed but the conversion failed.");
         return ret;
     }
@@ -66,7 +66,7 @@ namespace em::Filesystem
     offset_t Raw::ftell(FILE *file)
     {
         #ifdef _WIN32
-        return _telli64(file);
+        return _ftelli64(file);
         #else
         return ftello64(file);
         #endif

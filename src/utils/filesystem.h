@@ -10,9 +10,8 @@
 #include <span>
 #include <string_view>
 #include <utility>
-
 #ifdef _WIN32
-#include <wstring>
+#include <string>
 #endif
 
 namespace em::Filesystem

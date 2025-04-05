@@ -52,7 +52,6 @@ endif
 
 $(call Project,exe,imp-re)
 $(call ProjectSetting,source_dirs,src)
-$(call ProjectSetting,cxxflags,-DDOCTEST_CONFIG_DISABLE)
 # $(call ProjectSetting,pch,$(_pch_rules))
 $(call ProjectSetting,libs,*)
 

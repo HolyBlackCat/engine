@@ -50,7 +50,7 @@ namespace em::Gpu
                     _putenv_s("VK_DRIVER_FILES", str.c_str());
 
                     // We don't check for errors here. We test if the handle is still null below.
-                    state.device = SDL_CreateGPUDevice(SDL_ShaderCross_GetSPIRVShaderFormats(), debug_mode, nullptr);
+                    state.device = SDL_CreateGPUDevice(SDL_ShaderCross_GetSPIRVShaderFormats(), state.debug_mode_enabled, nullptr);
                 }
             }
             #else
