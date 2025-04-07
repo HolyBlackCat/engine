@@ -1,8 +1,10 @@
 #include "render_pass.h"
 
 #include "em/meta/overload.h"
+#include "gpu/buffer.h"
 #include "gpu/command_buffer.h"
 #include "gpu/pipeline.h"
+#include "gpu/sampler.h"
 #include "gpu/texture.h"
 
 #include <fmt/format.h>
@@ -132,6 +134,20 @@ namespace em::Gpu
             SDL_EndGPURenderPass(state.pass);
     }
 
+    void RenderPass::SetViewport(const Viewport &viewport)
+    {
+        SDL_GPUViewport sdl_viewport{
+            .x = viewport.pos.x,
+            .y = viewport.pos.y,
+            .w = viewport.size.x,
+            .h = viewport.size.y,
+            .min_depth = viewport.min_depth,
+            .max_depth = viewport.max_depth,
+        };
+        // This can't fail.
+        SDL_SetGPUViewport(state.pass, &sdl_viewport);
+    }
+
     void RenderPass::BindPipeline(Pipeline &pipeline)
     {
         // This can't fail.
@@ -153,6 +169,26 @@ namespace em::Gpu
 
         // This can't fail.
         SDL_BindGPUVertexBuffers(state.pass, first_slot, sdl_buffers.data(), std::uint32_t(sdl_buffers.size()));
+    }
+
+    void RenderPass::BindTextures(std::span<const TextureAndSampler> textures, ShaderStage shader_stage, std::uint32_t first_slot)
+    {
+        std::vector<SDL_GPUTextureSamplerBinding> sdl_textures;
+        sdl_textures.reserve(textures.size());
+
+        for (const TextureAndSampler &texture : textures)
+        {
+            sdl_textures.push_back({
+                .texture = texture.texture->Handle(),
+                .sampler = texture.sampler->Handle(),
+            });
+        }
+
+        // Those functions can't fail.
+        if (shader_stage == ShaderStage::vertex)
+            SDL_BindGPUVertexSamplers(state.pass, first_slot, sdl_textures.data(), std::uint32_t(sdl_textures.size()));
+        else
+            SDL_BindGPUFragmentSamplers(state.pass, first_slot, sdl_textures.data(), std::uint32_t(sdl_textures.size()));
     }
 
     void RenderPass::DrawPrimitivesInstanced(std::uint32_t num_vertices, std::uint32_t num_instances, std::uint32_t first_vertex, std::uint32_t first_instance)
