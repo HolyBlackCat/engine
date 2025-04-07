@@ -92,15 +92,6 @@ assets/%.frag.spv: assets/%.frag.glsl
 _win_is_x32 :=
 _win_sdl3_arch := $(if $(_win_is_x32),i686-w64-mingw32,x86_64-w64-mingw32)
 
-# Disable unnecessary stuff.
-
-_openal_flags := -DALSOFT_EXAMPLES=FALSE
-# Disable helper executables. Otherwise Windows builds fails because of missing Qt.
-_openal_flags += -DALSOFT_UTILS=FALSE
-# Enable SDL2 backend.
-_openal_flags += -DALSOFT_REQUIRE_SDL2=TRUE -DALSOFT_BACKEND_SDL2=TRUE
-# We used to disable other backends here, but it seems our CMake isolation works well enough to make this unnecessary.
-
 
 # # When you update this, check if they added installation rules for headers.
 # # To generate the new archive filename when updating (commit hash and date), you can use the comment at the beginning of our `box2cpp.h`.
@@ -134,6 +125,15 @@ $(call Library,fmt,https://github.com/fmtlib/fmt/releases/download/11.1.4/fmt-11
 #   $(call LibrarySetting,deps,zlib)
 # endif
 
+
+# Using a commit directly from `master` because new CMake chokes on release 1.24.3.
+$(call Library,openal_soft,https://github.com/kcat/openal-soft/archive/aeeedd432ce812e9576c89ebfe94f7d2d5e4a880.zip)
+  # I think AL can also utlize zlib, but we don't build zlib for now, and it's not clear what it gives AL anyway.
+  $(call LibrarySetting,deps,sdl3)
+  # `ALSOFT_UTILS=FALSE` disables helper executables. Otherwise Windows builds fail because of missing Qt.
+  # We used to disable other backends here, but it seems our CMake isolation should make this unnecessary.
+  $(call LibrarySetting,cmake_flags,-DALSOFT_EXAMPLES=FALSE -DALSOFT_UTILS=FALSE -DALSOFT_REQUIRE_SDL3=TRUE -DALSOFT_BACKEND_SDL3=TRUE)
+
 # $(call Library,phmap,parallel-hashmap-1.4.0.tar.gz)
 #   $(call LibrarySetting,cmake_flags,-DPHMAP_BUILD_TESTS=OFF -DPHMAP_BUILD_EXAMPLES=OFF)# Otherwise it downloads GTest, which is nonsense.
 
@@ -147,7 +147,7 @@ $(call Library,fmt,https://github.com/fmtlib/fmt/releases/download/11.1.4/fmt-11
 #   $(call LibrarySetting,build_system,copy_files)
 #   $(call LibrarySetting,copy_files,$(_win_sdl3_arch)/*->.)
 # else
-$(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/release-3.2.8/SDL3-3.2.8.tar.gz)
+$(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/release-3.2.10/SDL3-3.2.10.tar.gz)
   $(call LibrarySetting,cmake_allow_using_system_deps,1)
 # $(call Library,sdl3_net,SDL2_net-2.2.0.tar.gz)
 #   $(call LibrarySetting,deps,sdl3)
@@ -165,10 +165,9 @@ $(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/1
   # Disabling CLI tools because we don't need them and because they need static libs.
   $(call LibrarySetting,cmake_flags,-DSPIRV_CROSS_ENABLE_TESTS=OFF -DSPIRV_CROSS_SHARED=ON -DSPIRV_CROSS_STATIC=OFF -DSPIRV_CROSS_CLI=OFF)
 
-$(call Library,spirv_reflect,https://github.com/KhronosGroup/SPIRV-Reflect/archive/c637858562fbce1b6f5dc7ca48d4e8a5bd117b70.zip)
-  # Disable the executable and enable the library. They only support a static library, whatever.
-  $(call LibrarySetting,cmake_flags,-DSPIRV_REFLECT_EXECUTABLE=OFF -DSPIRV_REFLECT_STATIC_LIB=ON)
-  $(call LibrarySetting,install_files,spirv_reflect.h->include)
+# $(call Library,spirv_reflect,https://github.com/KhronosGroup/SPIRV-Reflect/archive/c6c0f5c9796bdef40c55065d82e0df67c38a29a4.zip)
+#   # Disable the executable and enable the library. They only support a static library, whatever.
+#   $(call LibrarySetting,cmake_flags,-DSPIRV_REFLECT_EXECUTABLE=OFF -DSPIRV_REFLECT_STATIC_LIB=ON)
 
 
 # $(call Library,stb,stb-31707d1-2024-10-03.zip)
