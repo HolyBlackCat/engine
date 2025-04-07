@@ -60,17 +60,20 @@ struct GameApp : App::Module
                 }
             }
         },
+        .targets = {
+            .color = {
+                Gpu::Pipeline::ColorTarget{
+                    .texture_format = window.GetSwapchainTextureFormat()
+                }
+            },
+        },
     });
 
-    Gpu::Buffer buffer = Gpu::Buffer(gpu, Gpu::Buffer::Params{
-        .size = sizeof(fvec3) * 6,
-    });
+    Gpu::Buffer buffer = Gpu::Buffer(gpu, sizeof(fvec3) * 6);
 
     GameApp()
     {
-        Gpu::TransferBuffer tr_buffer = Gpu::TransferBuffer(gpu, Gpu::TransferBuffer::Params{
-            .size = sizeof(fvec3) * 6,
-        });
+        Gpu::TransferBuffer tr_buffer = Gpu::TransferBuffer(gpu, sizeof(fvec3) * 6);
 
         {
             Gpu::TransferBuffer::Mapping map = tr_buffer.Map();
@@ -85,13 +88,19 @@ struct GameApp : App::Module
 
         Gpu::CommandBuffer cmdbuf(gpu);
         Gpu::CopyPass pass(cmdbuf);
-        tr_buffer.UploadToBuffer(pass, buffer);
+        tr_buffer.ApplyToBuffer(pass, buffer);
     }
 
     App::Action Tick() override
     {
         Gpu::CommandBuffer cmdbuf(gpu);
         Gpu::Texture swapchain_tex = cmdbuf.WaitAndAcquireSwapchainTexture(window);
+        if (!swapchain_tex)
+        {
+            cmdbuf.CancelWhenDestroyed();
+            return App::Action::cont; // No draw target.
+        }
+
         Gpu::RenderPass rp(cmdbuf, Gpu::RenderPass::Params{
             .color_targets = {
                 Gpu::RenderPass::ColorTarget{
@@ -101,15 +110,6 @@ struct GameApp : App::Module
                 },
             },
         });
-
-        if (!swapchain_tex)
-        {
-            std::cout << "No swapchain texture, probably the window is minimized\n";
-            cmdbuf.CancelWhenDestroyed();
-            return App::Action::cont; // No draw target.
-        }
-
-        fmt::println("Swapchain texture has size: [{},{},{}]", swapchain_tex.Size().x, swapchain_tex.Size().y, swapchain_tex.Size().z);
 
         rp.BindPipeline(pipeline);
         rp.BindVertexBuffers({{Gpu::RenderPass::VertexBuffer{
