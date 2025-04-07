@@ -169,9 +169,8 @@ $(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/1
 #   # Disable the executable and enable the library. They only support a static library, whatever.
 #   $(call LibrarySetting,cmake_flags,-DSPIRV_REFLECT_EXECUTABLE=OFF -DSPIRV_REFLECT_STATIC_LIB=ON)
 
-
-# $(call Library,stb,stb-31707d1-2024-10-03.zip)
-#   $(call LibrarySetting,build_system,copy_files)
-#   # Out of those, `rectpack` is used both by us and ImGui.
-#   # There's also `textedit`, which ImGui uses and we don't but we let ImGui keep its version, since it's slightly patched.
-#   $(call LibrarySetting,copy_files,stb_image.h->include stb_image_write.h->include stb_rect_pack.h->include)
+$(call Library,stb,https://github.com/nothings/stb/archive/f0569113c93ad095470c54bf34a17b36646bbbb5.zip)
+  $(call LibrarySetting,build_system,dummy)
+  # Out of those, `rectpack` is used both by us and ImGui.
+  # There's also `textedit`, which ImGui uses and we don't but we let ImGui keep its version, since it's slightly patched.
+  $(call LibrarySetting,install_files,*.h->include)
