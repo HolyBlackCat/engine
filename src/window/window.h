@@ -2,9 +2,10 @@
 
 #include "em/math/vector.h"
 
-#include <string_view>
+#include <SDL3/SDL_gpu.h>
 
-typedef struct SDL_Window SDL_Window;
+#include <optional>
+#include <string_view>
 
 namespace em
 {
@@ -19,6 +20,11 @@ namespace em
         struct State
         {
             SDL_Window *window = nullptr;
+
+            // Not a `Device *` to keep the address stable.
+            // Only set if a GPU device is attached.
+            // This is here solely for our convenience. This lets us call `SDL_GetGPUSwapchainTextureFormat()`, for example.
+            SDL_GPUDevice *gpu_device = nullptr;
         };
         State state;
 
@@ -30,6 +36,7 @@ namespace em
             Gpu::Device *gpu_device = nullptr; // GPU device, if this window uses the SDL GPU API. Otherwise leave null.
             std::string_view name = "{name}"; // Use `{name}` and `{version}` to query the application properties passed to `em::Sdl`.
             ivec2 size = ivec2(1920, 1080) / 3;
+            std::optional<ivec2> min_size{}; // If not set, matches `size`.
             bool resizable = true;
         };
 
@@ -41,5 +48,9 @@ namespace em
 
         [[nodiscard]] explicit operator bool() const {return bool(state.window);}
         [[nodiscard]] SDL_Window *Handle() {return state.window;}
+
+        // The texture format this window uses for rendering.
+        // Only makes sense if a GPU device is attached.
+        SDL_GPUTextureFormat GetSwapchainTextureFormat() const;
     };
 }
