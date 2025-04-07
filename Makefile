@@ -923,6 +923,10 @@ endef
 # Generate the targets for each library.
 $(foreach x,$(all_libs),$(call var,__lib_name := $x)$(eval $(value codesnippet_library)))
 
+# Precompute a list of all log files from all libraries.
+# You can put those into prerequisites to ensure all libraries are built before your target.
+override all_lib_log_files := $(call lib_name_to_log_path,$(all_libs))
+
 .PHONY: libs
 libs: $(addprefix lib-,$(all_libs))
 
@@ -1022,7 +1026,7 @@ $(__output): override __output := $(__output)
 $(__output): override __proj := $(__proj)
 $(__output): override __lang := $(__projsetting_lang_$(__proj))
 
-$(__output): $(__src) $(call lib_name_to_log_path,$(all_libs))
+$(__output): $(__src) $(all_lib_log_files)
 	$(call log_now,[$(language_name-$(__lang)) PCH] $<)
 	@$(call language_command-$(__lang),$<,$@,$(__proj),$(language_pchflag-$(__projsetting_lang_$(__proj))),output_deps)
 
@@ -1049,7 +1053,7 @@ $(__outputs) &: override __proj := $(__proj)
 $(__outputs) &: override __lang := $(call guess_lang_from_filename,$(__src))
 $(__outputs) &: override __pch := $(__pch)
 
-$(__outputs) &: $(__src) $(__pch) $(call lib_name_to_log_path,$(all_libs))
+$(__outputs) &: $(__src) $(__pch) $(all_lib_log_files)
 	$(call log_now,[$(language_name-$(__lang))] $<)
 	@$(call language_command-$(__lang),$<,$(firstword $(__outputs)),$(__proj),,output_deps)
 
@@ -1070,7 +1074,7 @@ $(foreach x,$(__projsetting_deps_$(__proj)),$(if $(filter shared,$(__proj_kind_$
 
 # A user-friendly link target. It also updates assets.
 .PHONY: build-$(__proj)
-build-$(__proj): $(__filename) sync-libs-and-assets
+build-$(__proj): $(__filename) sync-libs-and-assets $(COMMANDS_FILE)
 
 # The actual link target.
 $(__filename): override __proj := $(__proj)
@@ -1186,10 +1190,13 @@ override write_commands_for_project = \
 	)
 
 .PHONY: commands
-commands:
+commands: $(COMMANDS_FILE)
+# This gets rebuilt when the libraries update, or when the makefile itself changes.
+$(COMMANDS_FILE): $(all_lib_log_files) Makefile
+	$(call log_now,[Compile commands] compile_commands.json)
 	$(call var,__curdir := $(call doublequote,$(call abs_path_to_host,$(abspath $(proj_dir)))))
 	$(call var,__commands_first := 1)
-	$(call var,__commands_files := 1)
+	$(call var,__commands_files :=)
 	$(file >$(COMMANDS_FILE),[)
 	$(call, ### Note that we generate commands for APP first, to give it priority. We deduplicate the commands ourselves.)
 	$(call write_commands_for_project,$(APP))
@@ -1252,7 +1259,7 @@ override copy_assets_and_libs_to = \
 
 # Copies libraries and `ASSETS` to the current bin directory, ignoring any files matching `ASSETS_IGNORED_PATTERNS`.
 .PHONY: sync-libs-and-assets
-sync-libs-and-assets: $(call lib_name_to_log_path,$(all_libs)) $(ASSETS_GENERATED)
+sync-libs-and-assets: $(all_lib_log_files) $(ASSETS_GENERATED)
 	$(call copy_assets_and_libs_to,$(BIN_DIR)/$(os_mode_string),1)
 	@true
 
