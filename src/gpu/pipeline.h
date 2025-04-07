@@ -238,7 +238,7 @@ namespace em::Gpu
         // A single color target of the rendering.
         struct ColorTarget
         {
-            // The texture format. Defaults to the classical RGBA8.
+            // The texture format. We default to the classical RGBA8.
             SDL_GPUTextureFormat texture_format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
 
             // The blending mode.
@@ -252,9 +252,10 @@ namespace em::Gpu
 
         struct Targets
         {
-            // The list of color targets. We add one simple target by default.
+            // The list of color targets.
             // SDL docs say you should use at most 4 targets: https://wiki.libsdl.org/SDL3/CategoryGPU
-            std::vector<ColorTarget> color = {ColorTarget{}};
+            // We would add a default target here, but the texture format needs to be queried from the window, so that's up to the user.
+            std::vector<ColorTarget> color;
 
             // Set this to enable the depth/stencil target.
             // Adding `{}` to disable Clang warning about omitting the initializer for this in designated initialization.
@@ -263,7 +264,7 @@ namespace em::Gpu
 
         struct Params
         {
-            // Mandatory parts:
+            // --- Mandatory parts:
 
             // What shaders to use.
             Shaders shaders;
@@ -271,7 +272,11 @@ namespace em::Gpu
             // The vertex attributes and how they are laid out in the input vertex buffers.
             std::vector<VertexBuffer> vertex_buffers;
 
-            // Optional parts:
+            // The output targets.
+            // You must add at least a single color target here. See `struct Targets` for why we don't do it by default ourselves.
+            Targets targets;
+
+            // --- Optional parts:
             // Adding `{}` on all those to make Clang not warn when omitting initializers for them.
 
             // What primitive to draw, triangles or something else ("triangle strip" and "line strip" also go here).
@@ -291,9 +296,6 @@ namespace em::Gpu
             // Stencil test.
             // You must default-construct this to enable the stencil test.
             std::optional<Stencil> stencil{};
-
-            // The output targets.
-            Targets targets{};
         };
 
         constexpr Pipeline() {}

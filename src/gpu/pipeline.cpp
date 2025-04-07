@@ -80,6 +80,58 @@ namespace em::Gpu
         }
 
 
+        // Color targets.
+
+        // The storage for the color targets.
+        std::vector<SDL_GPUColorTargetDescription> sdl_color_targets;
+
+        { // Fill the color targets and write them to `sdl_params`.
+            sdl_color_targets.reserve(params.targets.color.size());
+
+            for (const ColorTarget &target : params.targets.color)
+            {
+                sdl_color_targets.push_back({
+                    .format = target.texture_format,
+                    .blend_state = {},
+                });
+
+                SDL_GPUColorTargetBlendState &sdl_blend = sdl_color_targets.back().blend_state;
+
+                if (target.blending)
+                {
+                    sdl_blend.enable_blend = true;
+
+                    sdl_blend.src_color_blendfactor = target.blending->color.source;
+                    sdl_blend.dst_color_blendfactor = target.blending->color.target;
+                    sdl_blend.color_blend_op        = target.blending->color.operation;
+                    sdl_blend.src_alpha_blendfactor = target.blending->alpha.source;
+                    sdl_blend.dst_alpha_blendfactor = target.blending->alpha.target;
+                    sdl_blend.alpha_blend_op        = target.blending->alpha.operation;
+                }
+
+                if (target.color_write_mask != bvec4(1))
+                {
+                    sdl_blend.enable_color_write_mask = true;
+                    sdl_blend.color_write_mask =
+                        target.color_write_mask.r() * SDL_GPU_COLORCOMPONENT_R |
+                        target.color_write_mask.g() * SDL_GPU_COLORCOMPONENT_G |
+                        target.color_write_mask.b() * SDL_GPU_COLORCOMPONENT_B |
+                        target.color_write_mask.a() * SDL_GPU_COLORCOMPONENT_A;
+                }
+            }
+
+            sdl_params.target_info.color_target_descriptions = sdl_color_targets.data();
+            sdl_params.target_info.num_color_targets = std::uint32_t(sdl_color_targets.size());
+
+
+            if (params.targets.depth_stencil_format)
+            {
+                sdl_params.target_info.has_depth_stencil_target = true;
+                sdl_params.target_info.depth_stencil_format = *params.targets.depth_stencil_format;
+            }
+        }
+
+
         // Primitve type.
         sdl_params.primitive_type = SDL_GPUPrimitiveType(params.primitive);
 
@@ -136,57 +188,6 @@ namespace em::Gpu
             }
         }
 
-
-        // Color targets.
-
-        // The storage for the color targets.
-        std::vector<SDL_GPUColorTargetDescription> sdl_color_targets;
-
-        { // Fill the color targets and write them to `sdl_params`.
-            sdl_color_targets.reserve(params.targets.color.size());
-
-            for (const ColorTarget &target : params.targets.color)
-            {
-                sdl_color_targets.push_back({
-                    .format = target.texture_format,
-                    .blend_state = {},
-                });
-
-                SDL_GPUColorTargetBlendState &sdl_blend = sdl_color_targets.back().blend_state;
-
-                if (target.blending)
-                {
-                    sdl_blend.enable_blend = true;
-
-                    sdl_blend.src_color_blendfactor = target.blending->color.source;
-                    sdl_blend.dst_color_blendfactor = target.blending->color.target;
-                    sdl_blend.color_blend_op        = target.blending->color.operation;
-                    sdl_blend.src_alpha_blendfactor = target.blending->alpha.source;
-                    sdl_blend.dst_alpha_blendfactor = target.blending->alpha.target;
-                    sdl_blend.alpha_blend_op        = target.blending->alpha.operation;
-                }
-
-                if (target.color_write_mask != bvec4(1))
-                {
-                    sdl_blend.enable_color_write_mask = true;
-                    sdl_blend.color_write_mask =
-                        target.color_write_mask.r() * SDL_GPU_COLORCOMPONENT_R |
-                        target.color_write_mask.g() * SDL_GPU_COLORCOMPONENT_G |
-                        target.color_write_mask.b() * SDL_GPU_COLORCOMPONENT_B |
-                        target.color_write_mask.a() * SDL_GPU_COLORCOMPONENT_A;
-                }
-            }
-
-            sdl_params.target_info.color_target_descriptions = sdl_color_targets.data();
-            sdl_params.target_info.num_color_targets = std::uint32_t(sdl_color_targets.size());
-
-
-            if (params.targets.depth_stencil_format)
-            {
-                sdl_params.target_info.has_depth_stencil_target = true;
-                sdl_params.target_info.depth_stencil_format = *params.targets.depth_stencil_format;
-            }
-        }
 
         // Must set before creating the pipeline to let the destructor do its job if we throw later in this function.
         state.device = device.Handle();
