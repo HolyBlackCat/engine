@@ -200,6 +200,39 @@ namespace em::Gpu
         {
             ChannelBlending color;
             ChannelBlending alpha;
+
+            // All of destination, source, and output are not premultiplied. This produces incorrect alpha values.
+            [[nodiscard]] static constexpr Blending Simple()
+            {
+                Blending ret;
+                ret.color.source = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+                ret.color.target = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+                ret.color.operation = SDL_GPU_BLENDOP_ADD;
+                ret.alpha = ret.color;
+                return ret;
+            }
+
+            // All of destination, source, and output ARE premultiplied. This performs correct blending.
+            [[nodiscard]] static constexpr Blending Premultiplied()
+            {
+                Blending ret;
+                ret.color.source = SDL_GPU_BLENDFACTOR_ONE;
+                ret.color.target = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+                ret.color.operation = SDL_GPU_BLENDOP_ADD;
+                ret.alpha = ret.color;
+                return ret;
+            }
+
+            // Source is not premultiplied, but the destination and output ARE. This performs correct blending.
+            [[nodiscard]] static constexpr Blending SimpleToPremultiplied()
+            {
+                Blending ret;
+                ret.color.source = SDL_GPU_BLENDFACTOR_ONE;
+                ret.color.target = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+                ret.color.operation = SDL_GPU_BLENDOP_ADD;
+                ret.alpha = ret.color;
+                return ret;
+            }
         };
 
         // A single color target of the rendering.
@@ -210,7 +243,8 @@ namespace em::Gpu
 
             // The blending mode.
             // Must construct this to enable blending.
-            std::optional<Blending> blending;
+            // Adding `{}` to disable Clang warning about omitting the initializer for this in designated initialization.
+            std::optional<Blending> blending{};
 
             // Which color channels to update. All ones by default.
             bvec4 color_write_mask = bvec4(1);
@@ -219,11 +253,12 @@ namespace em::Gpu
         struct Targets
         {
             // The list of color targets. We add one simple target by default.
-            // I think SDL docs said somewhere this should be at most 4.
+            // SDL docs say you should use at most 4 targets: https://wiki.libsdl.org/SDL3/CategoryGPU
             std::vector<ColorTarget> color = {ColorTarget{}};
 
             // Set this to enable the depth/stencil target.
-            std::optional<SDL_GPUTextureFormat> depth_stencil_format;
+            // Adding `{}` to disable Clang warning about omitting the initializer for this in designated initialization.
+            std::optional<SDL_GPUTextureFormat> depth_stencil_format{};
         };
 
         struct Params
