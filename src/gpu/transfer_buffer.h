@@ -106,6 +106,7 @@ namespace em::Gpu
             uvec3 target_offset{};
 
             // The image size. If zero, will use the texture size (the components can be zeroed individually).
+            // For layered textures, it's illegal to upload more than one layer at a time: https://github.com/libsdl-org/SDL/issues/12746#issuecomment-2781171335
             uvec3 target_size{};
 
             std::uint32_t self_byte_offset = 0;

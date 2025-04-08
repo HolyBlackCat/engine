@@ -141,7 +141,9 @@ namespace em::Gpu
             .z = params.target_offset.z,
             .w = params.target_size.x ? params.target_size.x : std::uint32_t(target.GetSize().x),
             .h = params.target_size.y ? params.target_size.y : std::uint32_t(target.GetSize().y),
-            .d = is_layered ? 1 : params.target_size.z ? params.target_size.z : std::uint32_t(target.GetSize().z),
+            // We are not adding `is_layered ? 1 : ...` here, to hopefully make SDL assert if someone tries to pass `depth != 1` for a layered texture,
+            //   which is illegal.
+            .d = params.target_size.z ? params.target_size.z : std::uint32_t(target.GetSize().z),
         };
 
         // Those functions can't fail.
