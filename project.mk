@@ -35,7 +35,7 @@ endif
 # --- Project config ---
 
 PROJ_CXXFLAGS += -std=c++26 -pedantic-errors
-PROJ_CXXFLAGS += -Wall -Wextra -Wdeprecated -Wextra-semi -Wimplicit-fallthrough -Wconversion -Wno-implicit-int-float-conversion
+PROJ_CXXFLAGS += -Wall -Wextra -Wdeprecated -Wextra-semi -Wimplicit-fallthrough
 PROJ_CXXFLAGS += -Wconversion -Wno-implicit-int-float-conversion# Conversion warnings, but without the silly ones.
 PROJ_CXXFLAGS += -ftemplate-backtrace-limit=0 -fmacro-backtrace-limit=0
 PROJ_CXXFLAGS += -Isrc
@@ -93,11 +93,8 @@ _win_is_x32 :=
 _win_sdl3_arch := $(if $(_win_is_x32),i686-w64-mingw32,x86_64-w64-mingw32)
 
 
-# # When you update this, check if they added installation rules for headers.
-# # To generate the new archive filename when updating (commit hash and date), you can use the comment at the beginning of our `box2cpp.h`.
-# $(call Library,box2d,box2d-b864f53-2024-09-29.zip)
+# $(call Library,box2d,https://github.com/erincatto/box2d/archive/3e968638a5d0b0ff7ff0dd5a1e8e88844927b2d2.zip)
 #   $(call LibrarySetting,cmake_flags,-DBOX2D_SAMPLES:BOOL=OFF -DBOX2D_UNIT_TESTS:BOOL=OFF)
-#   $(call LibrarySetting,build_system,box2d)
 # override buildsystem-box2d =\
 # 	$(call, ### Forward to CMake.)\
 # 	$(buildsystem-cmake)\
