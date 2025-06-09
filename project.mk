@@ -112,7 +112,7 @@ _win_sdl3_arch := $(if $(_win_is_x32),i686-w64-mingw32,x86_64-w64-mingw32)
 # $(call Library,enkits,enkiTS-686d0ec-2024-05-29.zip)
 #   $(call LibrarySetting,cmake_flags,-DENKITS_INSTALL=ON -DENKITS_BUILD_SHARED=ON -DENKITS_BUILD_EXAMPLES=OFF)
 
-$(call Library,fmt,https://github.com/fmtlib/fmt/releases/download/11.1.4/fmt-11.1.4.zip)
+$(call Library,fmt,https://github.com/fmtlib/fmt/releases/download/11.2.0/fmt-11.2.0.zip)
   $(call LibrarySetting,cmake_flags,-DFMT_TEST=OFF)
 
 # ifeq ($(TARGET_OS),emscripten)
@@ -124,7 +124,7 @@ $(call Library,fmt,https://github.com/fmtlib/fmt/releases/download/11.1.4/fmt-11
 
 
 # Using a commit directly from `master` because new CMake chokes on release 1.24.3.
-$(call Library,openal_soft,https://github.com/kcat/openal-soft/archive/aeeedd432ce812e9576c89ebfe94f7d2d5e4a880.zip)
+$(call Library,openal_soft,https://github.com/kcat/openal-soft/archive/b71d4a11c699eaabf59858a4f3211c92da14c977.zip)
   # I think AL can also utlize zlib, but we don't build zlib for now, and it's not clear what it gives AL anyway.
   $(call LibrarySetting,deps,sdl3)
   # `ALSOFT_UTILS=FALSE` disables helper executables. Otherwise Windows builds fail because of missing Qt.
@@ -144,19 +144,20 @@ $(call Library,openal_soft,https://github.com/kcat/openal-soft/archive/aeeedd432
 #   $(call LibrarySetting,build_system,copy_files)
 #   $(call LibrarySetting,copy_files,$(_win_sdl3_arch)/*->.)
 # else
-$(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/release-3.2.10/SDL3-3.2.10.tar.gz)
+$(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/release-3.2.16/SDL3-3.2.16.tar.gz)
   $(call LibrarySetting,cmake_allow_using_system_deps,1)
 # $(call Library,sdl3_net,SDL2_net-2.2.0.tar.gz)
 #   $(call LibrarySetting,deps,sdl3)
 # endif
 
-$(call Library,sdl_shadercross,https://github.com/libsdl-org/SDL_shadercross/archive/7c1c545fb2e2bc12b80c85ec49be3500dc751b20.zip)
+# Update is blocked by bug: https://github.com/libsdl-org/SDL_shadercross/issues/150
+$(call Library,sdl_shadercross,https://github.com/libsdl-org/SDL_shadercross/archive/f0692b162c27cdf11629b19be0e1f6c20d4f6dc4.zip)
   $(call LibrarySetting,deps,sdl3 spirv_cross)
   # Disabling HLSL input, only keeping SPIRV input.
   # Enable installation, otherwise CMake installs nothing.
   $(call LibrarySetting,cmake_flags,-DSDLSHADERCROSS_DXC=OFF -DSDLSHADERCROSS_INSTALL=ON)
 
-$(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/1823c119c4d7311469199c1afecf2e255e26eb16.zip)
+$(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/1a69a919fa302e92b337594bd0a8aaea61037d91.zip)
   # Disabling tests for speed.
   # Switching from static to dynamic libs just in case, in case we need to link it to our own app.
   # Disabling CLI tools because we don't need them and because they need static libs.
@@ -166,7 +167,7 @@ $(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/1
 #   # Disable the executable and enable the library. They only support a static library, whatever.
 #   $(call LibrarySetting,cmake_flags,-DSPIRV_REFLECT_EXECUTABLE=OFF -DSPIRV_REFLECT_STATIC_LIB=ON)
 
-$(call Library,stb,https://github.com/nothings/stb/archive/f0569113c93ad095470c54bf34a17b36646bbbb5.zip)
+$(call Library,stb,https://github.com/nothings/stb/archive/f58f558c120e9b32c217290b80bad1a0729fbb2c.zip)
   $(call LibrarySetting,build_system,dummy)
   # Out of those, `rectpack` is used both by us and ImGui.
   # There's also `textedit`, which ImGui uses and we don't but we let ImGui keep its version, since it's slightly patched.
