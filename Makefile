@@ -187,27 +187,31 @@ buildsystem_detection := CMakeLists.txt->cmake configure->configure_make
 language_list :=
 
 # Everything should be mostly self-explanatory.
-# `language_outputs_deps` describes whether an extra `.d` file is created or not (don't define it if not).
+# `language_outputs_deps` describes whether an extra `.d` file can optionally be created or not (don't define it if not). The caller has to opt into creating it, see below.
+# `langauge_supports_syntax_only` describes whether this langauge supports the `-fsyntax-only` flag or equivalent.
 # In `language_command`:
 # $1 is the input file.
 # $2 is the output file, or empty string if we don't care.
 # $3 is the project name, or empty string if none.
 # $4 is extra flags.
-# $5 - if non-empty string, output dependencies as if by -MMD -MP, if this language supports it. You must also set `language_outputs_deps-??` to non-empty string if you support it.
+# $5 - if non-empty string, output dependencies as if by `-MMD -MP`, if this language supports it. Can only happen if you opted in via `language_outputs_deps-$(lang)`.
+# $6 - if non-empty string, only check the syntax. $2 and $5 will be empty. Can only happen if you opted in via `langauge_supports_syntax_only-$(lang)`.
 
 language_list += c
 override language_name-c := C
 override language_pattern-c := *.c
-override language_command-c = $(strip $(CC) $(if $3,$(call pch_flag_for_source,$1,$3)) $4 $(if $5,-MMD -MP) -c $1 $(if $2,-o $2) $(if $3,$(call proj_libs_filtered_flags,cflags,$3)) $(combined_global_cflags) $(if $3,$(PROJ_COMMON_FLAGS) $(PROJ_CFLAGS) $(__projsetting_common_flags_$3) $(__projsetting_cflags_$3) $(call $(__projsetting_flags_func_$3),$1)))
+override language_command-c = $(strip $(CC) $(if $3,$(call pch_flag_for_source,$1,$3)) $4 $(if $5,-MMD -MP) $(if $6,-fsyntax-only,-c) $1 $(if $2,-o $2) $(if $3,$(call proj_libs_filtered_flags,cflags,$3)) $(combined_global_cflags) $(if $3,$(PROJ_COMMON_FLAGS) $(PROJ_CFLAGS) $(__projsetting_common_flags_$3) $(__projsetting_cflags_$3) $(call $(__projsetting_flags_func_$3),$1)))
 override language_outputs_deps-c := y
+override langauge_supports_syntax_only-c := y
 override language_link-c = $(CC)
 override language_pchflag-c := -xc-header
 
 language_list += cpp
 override language_name-cpp := C++
 override language_pattern-cpp := *.cpp
-override language_command-cpp = $(strip $(CXX) $(if $3,$(call pch_flag_for_source,$1,$3)) $4 $(if $5,-MMD -MP) -c $1 $(if $2,-o $2) $(if $3,$(call proj_libs_filtered_flags,cflags,$3)) $(combined_global_cxxflags) $(if $3,$(PROJ_COMMON_FLAGS) $(PROJ_CXXFLAGS) $(__projsetting_common_flags_$3) $(__projsetting_cxxflags_$3) $(call $(__projsetting_flags_func_$3),$1)))
+override language_command-cpp = $(strip $(CXX) $(if $3,$(call pch_flag_for_source,$1,$3)) $4 $(if $5,-MMD -MP) $(if $6,-fsyntax-only,-c) $1 $(if $2,-o $2) $(if $3,$(call proj_libs_filtered_flags,cflags,$3)) $(combined_global_cxxflags) $(if $3,$(PROJ_COMMON_FLAGS) $(PROJ_CXXFLAGS) $(__projsetting_common_flags_$3) $(__projsetting_cxxflags_$3) $(call $(__projsetting_flags_func_$3),$1)))
 override language_outputs_deps-cpp := y
+override langauge_supports_syntax_only-cpp := y
 override language_link-cpp = $(CXX)
 override language_pchflag-cpp := -xc++-header
 
@@ -981,18 +985,21 @@ override pch_rule_sep := ->
 # The flags are filtered according to the project settings, and also are cached.
 override proj_libs_filtered_flags = $(call pairwise_subst,$(bad_lib_flags_sep),$(BAD_LIB_FLAGS) $(__projsetting_bad_lib_flags_$2),$(call lib_cache_flags,lib_$(strip $1),$(__projsetting_libs_$2)))
 
+# Returns non-empty if source file $1 should be compiled with `-fsyntax-only`.
+# This happens if the language indicates that it can support that (via `langauge_supports_syntax_only-$(lang)`), AND if the filename ends with `.nolink.$(ext)`.
+override source_file_is_syntax_only = $(if langauge_supports_syntax_only-$(call guess_lang_from_filename,$1),$(filter %.nolink,$(basename $1)))
+
 # Given source filenames $1 and a project $2, returns the resulting dependency output files, if any. Some languages don't generate them.
 override source_files_to_dep_outputs = $(strip $(foreach x,$1,$(if $(language_outputs_deps-$(call guess_lang_from_filename,$x)),$(OBJ_DIR)/$(os_mode_string)/$2/$x.d)))
 
 # Given source filenames $1 and a project $2, returns the resulting primary output files. Never returns less elements than in $1.
 # and returns only the first output for each file.
-override source_files_to_main_outputs = $(patsubst %,$(OBJ_DIR)/$(os_mode_string)/$2/%.o,$1)
+override source_files_to_main_outputs = $(foreach x,$1,$(patsubst %,$(OBJ_DIR)/$(os_mode_string)/$2/%$(if $(call source_file_is_syntax_only,$x),.syntax_checked,.o),$x))
 
 # Given source PCH filenames $1 and a project $2, returns the compiled PCH filename.
 override pch_files_to_outputs = $(patsubst %,$(OBJ_DIR)/$(os_mode_string)/$2/%.gch,$1)
 # Same, but if `ALLOW_PCH` is false, returns the arguments unchanged.
-# Note: can't just use `$(if $(ALLOW_PCH),)` here. This kind of check allows us to temporarily disable PCH by wrapping the function in `$(foreach ALLOW_PCH,0,...)`.
-override pch_files_to_outputs_or_orig = $(if $(filter-out 0,$(ALLOW_PCH)),$(call pch_files_to_outputs,$1,$2),$1)
+override pch_files_to_outputs_or_orig = $(if $(ALLOW_PCH),$(call pch_files_to_outputs,$1,$2),$1)
 
 # Given a source file $1 and a project $2, returns the PCH header for it, if any.
 override pch_header_for_source = $(if $(language_pchflag-$(call guess_lang_from_filename_opt,$1)),$(call find_first_match,$(pch_rule_sep),;,$(subst *,%,$(__projsetting_pch_$2)),$1))
@@ -1047,15 +1054,18 @@ override __outputs := $(call source_files_to_main_outputs,$(__src),$(__proj))
 # override __outputs := $(call source_files_to_output_list,$(__src),$(__proj))
 # The compiled PCH, if any.
 override __pch := $(call pch_files_to_outputs_or_orig,$(call pch_header_for_source,$(__src),$(__proj)),$(__proj))
+# Does this source file use `-fsyntax-only`.
+override __syntax_only := $(call source_file_is_syntax_only,$(__src))
 
 $(__outputs) &: override __outputs := $(__outputs)
 $(__outputs) &: override __proj := $(__proj)
 $(__outputs) &: override __lang := $(call guess_lang_from_filename,$(__src))
 $(__outputs) &: override __pch := $(__pch)
+$(__outputs) &: override __syntax_only := $(__syntax_only)
 
 $(__outputs) &: $(__src) $(__pch) $(all_lib_log_files)
-	$(call log_now,[$(language_name-$(__lang))] $<)
-	@$(call language_command-$(__lang),$<,$(firstword $(__outputs)),$(__proj),,output_deps)
+	$(call log_now,[$(language_name-$(__lang))$(if $(__syntax_only), syntax only)] $<)
+	@$(call language_command-$(__lang),$<,$(if $(__syntax_only),,$(firstword $(__outputs))),$(__proj),,$(if $(__syntax_only),,output_deps),$(if $(__syntax_only),syntax_only)) $(if $(__syntax_only),&& touch $(firstword $(__outputs)))
 
 -include $(call source_files_to_dep_outputs,$(__src),$(__proj))
 endef

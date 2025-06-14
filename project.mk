@@ -51,14 +51,9 @@ endif
 # override _pch_rules := src/game/*->src/game/master.hpp
 
 $(call Project,exe,imp-re)
-$(call ProjectSetting,source_dirs,src)
+$(call ProjectSetting,source_dirs,src $(wildcard deps/*/test))
 # $(call ProjectSetting,pch,$(_pch_rules))
 $(call ProjectSetting,libs,*)
-
-# Remove the linux-only flag on MinGW. SDL_shadercross is buggy and tries to insert this: https://github.com/libsdl-org/SDL_shadercross/issues/128
-ifeq ($(TARGET_OS),windows)
-$(call ProjectSetting,bad_lib_flags,-Wl$(comma)--enable-new-dtags)
-endif
 
 
 # Shader compilation:
