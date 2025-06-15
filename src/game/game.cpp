@@ -1,15 +1,17 @@
 #include "em/refl/macros/structs.h"
 #include "gpu/buffer.h"
 #include "gpu/command_buffer.h"
-#include "gpu/device.h"
 #include "gpu/copy_pass.h"
+#include "gpu/device.h"
 #include "gpu/pipeline.h"
+#include "gpu/refl/vertex_layout.h"
 #include "gpu/render_pass.h"
 #include "gpu/shader.h"
 #include "gpu/transfer_buffer.h"
 #include "mainloop/main.h"
 #include "mainloop/reflected_app.h"
 #include "utils/filesystem.h"
+#include "utils/reinterpret_span.h"
 #include "window/sdl.h"
 #include "window/window.h"
 
@@ -38,6 +40,12 @@ struct GameApp : App::Module
     Gpu::Shader sh_v = Gpu::Shader(gpu, "main vert", Gpu::Shader::Stage::vertex, Filesystem::LoadedFile(fmt::format("{}assets/shaders/main.vert.spv", Filesystem::GetResourceDir())));
     Gpu::Shader sh_f = Gpu::Shader(gpu, "main frag", Gpu::Shader::Stage::fragment, Filesystem::LoadedFile(fmt::format("{}assets/shaders/main.frag.spv", Filesystem::GetResourceDir())));
 
+    EM_STRUCT(Vertex)
+    (
+        (fvec3)(pos)
+        (fvec3)(color)
+    )
+
     Gpu::Pipeline pipeline = Gpu::Pipeline(gpu, Gpu::Pipeline::Params{
         .shaders = {
             .vert = &sh_v,
@@ -45,19 +53,7 @@ struct GameApp : App::Module
         },
         .vertex_buffers = {
             {
-                Gpu::Pipeline::VertexBuffer{
-                    .pitch = sizeof(fvec3) * 2,
-                    .attributes = {
-                        Gpu::Pipeline::VertexAttribute{
-                            .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
-                            .byte_offset_in_elem = 0,
-                        },
-                        Gpu::Pipeline::VertexAttribute{
-                            .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
-                            .byte_offset_in_elem = sizeof(fvec3),
-                        },
-                    }
-                }
+                Gpu::ReflectedVertexLayout<Vertex>{},
             }
         },
         .targets = {
@@ -73,22 +69,26 @@ struct GameApp : App::Module
 
     GameApp()
     {
-        Gpu::TransferBuffer tr_buffer = Gpu::TransferBuffer(gpu, sizeof(fvec3) * 6);
+        Vertex verts[3] = {
+            {
+                .pos = fvec3(0, 0.5, 0),
+                .color = fvec3(1, 0, 0),
+            },
+            {
+                .pos = fvec3(0.5, -0.5, 0),
+                .color = fvec3(0, 1, 0),
+            },
+            {
+                .pos = fvec3(-0.5, -0.5, 0),
+                .color = fvec3(0, 0, 1),
+            },
+        };
 
-        {
-            Gpu::TransferBuffer::Mapping map = tr_buffer.Map();
-            auto ptr = reinterpret_cast<fvec3 *>(map.Span().data());
-            *ptr++ = fvec3(0, 0.5, 0);
-            *ptr++ = fvec3(1, 0, 0);
-            *ptr++ = fvec3(0.5, -0.5, 0);
-            *ptr++ = fvec3(0, 1, 0);
-            *ptr++ = fvec3(-0.5, -0.5, 0);
-            *ptr++ = fvec3(0, 0, 1);
-        }
 
         Gpu::CommandBuffer cmdbuf(gpu);
         Gpu::CopyPass pass(cmdbuf);
-        tr_buffer.ApplyToBuffer(pass, buffer);
+
+        buffer = Gpu::Buffer(gpu, pass, reinterpret_span<unsigned char>(verts));
     }
 
     App::Action Tick() override
