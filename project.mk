@@ -37,7 +37,8 @@ endif
 PROJ_CXXFLAGS += -std=c++26 -pedantic-errors
 PROJ_CXXFLAGS += -Wall -Wextra -Wdeprecated -Wextra-semi -Wimplicit-fallthrough
 PROJ_CXXFLAGS += -Wconversion -Wno-implicit-int-float-conversion# Conversion warnings, but without the silly ones.
-PROJ_CXXFLAGS += -ftemplate-backtrace-limit=0 -fmacro-backtrace-limit=0
+PROJ_CXXFLAGS += -ftemplate-backtrace-limit=0
+PROJ_CXXFLAGS += -fmacro-backtrace-limit=1# 1 = minimal, 0 = infinite
 PROJ_CXXFLAGS += -Isrc
 PROJ_CXXFLAGS += -Ideps/macros/include -Ideps/math/include -Ideps/meta/include -Ideps/reflection/include -Ideps/zstring_view/include
 

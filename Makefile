@@ -134,6 +134,11 @@ WGET_FLAGS = $(if $(__wget_progress_flag),,$(call var,__wget_progress_flag := -c
 # Need `>$(MAKE_TERMERR)` too improve the progressbar styling (otherwise at least wget1 does something ugly).
 override download_file = $(call safe_shell_exec,mkdir -p $(call quote,$(dir $2)) && wget $(call quote,$1) $(WGET_FLAGS) -O $(call quote,$2) 1>&2 $(if $(MAKE_TERMERR),2>$(MAKE_TERMERR)) || (rm -f $(call quote,$2) && false))
 
+# Same, but first downloads to a temporary path `$3`, and then moves that to `$2` when done.
+# This is needed for the download continuation to work correctly if interrupted.
+# Apparently us doing `|| rm -rf $2` in `download_file` isn't enough, as it doesn't seem to catch Ctrl+C.
+override download_file_to_temporary = $(call download_file,$1,$3)$(call safe_shell_exec,mv $(call quote,$3) $(call quote,$2))
+
 
 # --- Archive support ---
 
@@ -785,8 +790,9 @@ override lib_name_to_name_version = $(foreach x,$1,$(call lib_name_to_name_versi
 override lib_name_to_name_version_low = $(patsubst lib%,%,$(if $(findstring _,$2)$(findstring -,$2)$(findstring .,$2),$2,$1-$2))
 
 # Given library name $1 (or a list), outputs the archive path for it.
-# If the library isn't downloaded, this matches what the user has specified. Otherwise it begins with `$(LIB_SRC_DIR)`
-override lib_name_to_archive_path = $(foreach x,$1,$(if $(call lib_uses_url,$x),$(LIB_SRC_DIR)/$(call lib_name_to_name_version,$x)$(call archive_only_ext,$(__libsetting_url_or_path_$x)),$(__libsetting_url_or_path_$x)))
+# $2 is an optional prefix that's prepended to the filename (not to the entire path).
+# If the library doesn't have a download URL, this matches what the file path that user has specified. Otherwise it begins with `$(LIB_SRC_DIR)`
+override lib_name_to_archive_path = $(foreach x,$1,$(if $(call lib_uses_url,$x),$(LIB_SRC_DIR)/$2$(call lib_name_to_name_version,$x)$(call archive_only_ext,$(__libsetting_url_or_path_$x)),$(__libsetting_url_or_path_$x)))
 
 
 # Given library name $1, returns the base directory for storing everything related to it (except for the source archive).
@@ -804,6 +810,7 @@ override define codesnippet_library =
 # __lib_name = Library name
 $(call var,__has_url := $(call lib_uses_url,$(__lib_name)))# Do we have an URL? (as opposed to a file path)
 $(call var,__ar_path := $(call lib_name_to_archive_path,$(__lib_name)))
+$(call var,__ar_path_temp := $(call lib_name_to_archive_path,$(__lib_name),_))
 $(call var,__log_path_final := $(call lib_name_to_log_path,$(__lib_name)))# The final log path
 $(call var,__log_path := $(__log_path_final).unfinished)# Temporary log path for an unfinished log
 
@@ -819,6 +826,7 @@ $(__log_path_final): override __log_path := $(__log_path)
 
 $(__ar_path): override __has_url := $(__has_url)
 $(__ar_path): override __ar_path := $(__ar_path)
+$(__ar_path): override __ar_path_temp := $(__ar_path_temp)
 
 # ^ NOTE: If adding any useful variable here, document then in `Variables available to build systems` below.
 
@@ -827,7 +835,7 @@ $(__ar_path): override __ar_path := $(__ar_path)
 download-lib-$(__lib_name): $(__ar_path)
 $(__ar_path):
 	$(if $(__has_url),,$(error Can't download `$(notdir $(__ar_path))`, no URL is specified))
-	$(call download_file,$(__libsetting_url_or_path_$(__lib_name)),$(__ar_path))
+	$(call download_file_to_temporary,$(__libsetting_url_or_path_$(__lib_name)),$(__ar_path),$(__ar_path_temp))
 	@true
 
 # Destroys the downloaded source archive.
@@ -1294,11 +1302,13 @@ repeat-build-number:
 	@true
 
 # Archives library sources into a single archive at `DIST_DEPS_ARCHIVE`.
+# Only respects library source archives at `LIB_SRC_DIR`, which includes all downloaded libraries.
+# Only packs the libraries that are used.
 .PHONY: dist-deps
 dist-deps:
 	$(call var,__ar_ext := $(suffix $(notdir $(DIST_DEPS_ARCHIVE))))
 	$(if $(dist_command-$(__ar_ext)),,$(error Don't know how to create a `$(__ar_ext)` archive))
-	$(call safe_shell_exec,mkdir -p $(call quote,$(DIST_DEPS_ARCHIVE)) && $(call dist_command-$(__ar_ext),$(LIB_SRC_DIR),$(patsubst $(LIB_SRC_DIR)/%,%,$(wildcard $(LIB_SRC_DIR)/*)),$(DIST_DEPS_ARCHIVE)))
+	$(call safe_shell_exec,mkdir -p $(call quote,$(dir $(DIST_DEPS_ARCHIVE))) && $(call dist_command-$(__ar_ext),$(LIB_SRC_DIR),$(patsubst $(LIB_SRC_DIR)/%,%,$(filter $(LIB_SRC_DIR)/%,$(call lib_name_to_archive_path,$(all_libs)))),$(DIST_DEPS_ARCHIVE)))
 	@true
 
 # Build and package the app, using the current mode. Then increment the build number.
@@ -1371,7 +1381,8 @@ dist: build-current
 
 # --- Full clean targets ---
 
-# Cleans everything.
+# Cleans everything, except leaves the downloaded library achives.
+# Those are only destroyed by `prepare-for-storage`, which also archives them into a single archive.
 .PHONY: clean-everything
 clean-everything:
 	$(call safe_shell_exec,rm -rf $(call quote,$(BIN_DIR)))
@@ -1382,7 +1393,8 @@ clean-everything:
 	$(foreach x,$(CLEAN_EXTRA_FILES),$(call safe_shell_exec,rm -rf $(call quote,$(proj_dir)/$x)))
 	@true
 
-# Cleans everything, and additionally archives the library sources into a single file, and deletes the separate archives.
+# Cleans everything, and additionally archives the library sources into a single file, and deletes the individual archives.
+# Since we only archive the libraries that are used, this automatically cleans up stale archives.
 .PHONY: prepare-for-storage
 ifneq ($(wildcard $(LIB_SRC_DIR)),)
 prepare-for-storage: dist-deps
