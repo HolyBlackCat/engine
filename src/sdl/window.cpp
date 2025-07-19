@@ -26,9 +26,12 @@ namespace em
         if (!state.window)
             throw std::runtime_error(fmt::format("Unable to create SDL window: {}", SDL_GetError()));
 
-        state.gpu_device = params.gpu_device->Handle();
-        if (params.gpu_device && !SDL_ClaimWindowForGPUDevice(params.gpu_device->Handle(), state.window))
-            throw std::runtime_error(fmt::format("Unable to attach SDL window to the GPU device: {}", SDL_GetError()));
+        if (params.gpu_device)
+        {
+            state.gpu_device = params.gpu_device->Handle();
+            if (!SDL_ClaimWindowForGPUDevice(params.gpu_device->Handle(), state.window))
+                throw std::runtime_error(fmt::format("Unable to attach SDL window to the GPU device: {}", SDL_GetError()));
+        }
 
         if (!SDL_SetWindowMinimumSize(state.window, params.min_size ? params.min_size->x : params.size.x, params.min_size ? params.min_size->y : params.size.y))
             throw std::runtime_error(fmt::format("Unable to set minimum window size: {}", SDL_GetError()));
@@ -37,7 +40,6 @@ namespace em
     Window::Window(Window &&other) noexcept
         : state(std::move(other.state))
     {
-        other.state = {};
     }
 
     Window &Window::operator=(Window other) noexcept
@@ -49,7 +51,11 @@ namespace em
     Window::~Window()
     {
         if (state.window)
+        {
+            if (state.gpu_device)
+                SDL_ReleaseWindowFromGPUDevice(state.gpu_device, state.window);
             SDL_DestroyWindow(state.window);
+        }
     }
 
     SDL_GPUTextureFormat Window::GetSwapchainTextureFormat() const

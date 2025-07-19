@@ -12,8 +12,8 @@
 #include "mainloop/reflected_app.h"
 #include "utils/filesystem.h"
 #include "utils/reinterpret_span.h"
-#include "window/sdl.h"
-#include "window/window.h"
+#include "sdl/sdl.h"
+#include "sdl/window.h"
 
 #include <iostream>
 #include <memory>

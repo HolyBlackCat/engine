@@ -1209,6 +1209,13 @@ override write_commands_for_project = \
 
 .PHONY: commands
 commands: $(COMMANDS_FILE)
+
+# If we're doing `make commands`, force update the commands file even if it none of the prerequisites changed, since our prerequisites are obviously
+#   incomplete (we don't track the globbed source files and so on).
+ifneq ($(filter commands,$(MAKECMDGOALS)),)
+.PHONY: $(COMMANDS_FILE)
+endif
+
 # This gets rebuilt when the libraries update, or when the makefile itself changes.
 $(COMMANDS_FILE): $(all_lib_log_files) Makefile
 	$(call log_now,[Compile commands] compile_commands.json)

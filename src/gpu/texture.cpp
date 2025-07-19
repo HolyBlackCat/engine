@@ -32,9 +32,10 @@ namespace em::Gpu
             throw std::runtime_error(fmt::format("Unable to create a GPU texture: {}", SDL_GetError()));
         state.size = params.size;
         state.type = params.type;
+        state.format = params.format;
     }
 
-    Texture::Texture(ViewExternalHandle, SDL_GPUDevice *device, SDL_GPUTexture *handle, ivec3 size, Type type)
+    Texture::Texture(ViewExternalHandle, SDL_GPUDevice *device, SDL_GPUTexture *handle, ivec3 size, SDL_GPUTextureFormat format, Type type)
     {
         if (handle)
         {
@@ -43,6 +44,7 @@ namespace em::Gpu
             state.owns_texture = false;
             state.size = size;
             state.type = type;
+            state.format = format;
         }
     }
 

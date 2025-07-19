@@ -2,6 +2,7 @@
 
 #include "em/meta/zero_moved_from.h"
 #include "em/zstring_view.h"
+#include "utils/blob.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -79,15 +80,8 @@ namespace em::Filesystem
 
 
     // The contents of a file loaded to memory.
-    class LoadedFile
+    class LoadedFile : public zblob
     {
-        // This nicely gives us owning and non-owning pointers, and we actually want the refcounted semantics.
-        std::shared_ptr<const unsigned char[]> ptr;
-
-        // There's also a null terminator not included in here.
-        // This is zeroed by default.
-        Meta::ZeroMovedFrom<std::size_t> data_size;
-
         // A file name for the user.
         Meta::ZeroMovedFrom<std::string> name;
 
@@ -97,19 +91,6 @@ namespace em::Filesystem
         // Load from a file.
         LoadedFile(zstring_view file_path);
 
-        [[nodiscard]] explicit operator bool() const {return bool(ptr);}
-
         [[nodiscard]] const std::string &GetName() const {return name.value;}
-
-        [[nodiscard]] const unsigned char *data() const {return ptr.get();}
-        [[nodiscard]] std::size_t size() const {return data_size.value;}
-
-        [[nodiscard]] const unsigned char *begin() const {return data();}
-        [[nodiscard]] const unsigned char *end() const {return data() + size();}
-
-        [[nodiscard]] operator std::span<const unsigned char>() const {return {ptr.get(), data_size.value};}
-        [[nodiscard]] operator zstring_view() const {return zstring_view(zstring_view::TrustSpecifiedSize{}, {reinterpret_cast<const char *>(ptr.get()), data_size.value});}
-        // This doesn't work automatically in some cases because the compiler refuses to consider more than one user-defined conversion at the same time.
-        [[nodiscard]] operator std::string_view() const {return operator zstring_view();}
     };
 }

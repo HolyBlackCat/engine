@@ -2,7 +2,7 @@
 
 #include "gpu/device.h"
 #include "gpu/fence.h"
-#include "window/window.h"
+#include "sdl/window.h"
 
 #include <fmt/format.h>
 #include <SDL3/SDL_gpu.h>
@@ -78,6 +78,6 @@ namespace em::Gpu
         if (!SDL_WaitAndAcquireGPUSwapchainTexture(state.buffer, window.Handle(), &texture, &size.x, &size.y))
             throw std::runtime_error(fmt::format("Unable to acquire a GPU swapchain texture: {}", SDL_GetError()));
 
-        return Texture(Texture::ViewExternalHandle{}, state.device, texture, size.to<int>().to_vec3(1));
+        return Texture(Texture::ViewExternalHandle{}, state.device, texture, size.to<int>().to_vec3(1), window.GetSwapchainTextureFormat());
     }
 }

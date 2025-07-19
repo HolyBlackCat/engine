@@ -145,11 +145,10 @@ namespace em::Filesystem
 
     LoadedFile::LoadedFile(zstring_view file_path)
     {
-        auto new_ptr = reinterpret_cast<const unsigned char *>(SDL_LoadFile(file_path.c_str(), &data_size.value));
+        std::size_t size = 0;
+        auto new_ptr = reinterpret_cast<const unsigned char *>(SDL_LoadFile(file_path.c_str(), &size));
         if (!new_ptr)
             throw std::runtime_error(fmt::format("Unable to load file contents: `{}`.", file_path));
-        ptr = std::shared_ptr<const unsigned char[]>(new_ptr, [](const unsigned char *data){SDL_free(const_cast<unsigned char *>(data));});
-
-        name = file_path;
+        zblob::operator=(zblob(zblob::OwningSdl{}, new_ptr, size));
     }
 }

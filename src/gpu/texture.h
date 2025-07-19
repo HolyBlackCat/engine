@@ -58,6 +58,9 @@ namespace em::Gpu
 
             // Solely for user convenience.
             Type type{};
+
+            // Solely for user convenience.
+            SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_INVALID;
         };
         State state;
 
@@ -92,8 +95,8 @@ namespace em::Gpu
         struct ViewExternalHandle {explicit ViewExternalHandle() = default;};
         // Put an existing handle into a texture, and don't free it when destroyed. Need this for swapchain textures.
         // Returns a null texture if `handle` is null.
-        // `type` is just saved for the user convenience.
-        Texture(ViewExternalHandle, SDL_GPUDevice *device, SDL_GPUTexture *handle, ivec3 size, Type type = Type::two_dim);
+        // `format` and `type` are just saved for the user convenience.
+        Texture(ViewExternalHandle, SDL_GPUDevice *device, SDL_GPUTexture *handle, ivec3 size, SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_INVALID, Type type = Type::two_dim);
 
         Texture(Texture &&other) noexcept;
         Texture &operator=(Texture other) noexcept;
