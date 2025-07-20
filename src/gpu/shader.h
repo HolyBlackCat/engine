@@ -47,14 +47,15 @@ namespace em::Gpu
         [[nodiscard]] SDL_GPUShader *Handle() {return state.shader;}
 
         // Sets the uniform value.
+        // SDL says this survives to the end of the current command buffer (https://wiki.libsdl.org/SDL3/CategoryGPU#uniform-data).
         // SDL says if you pass a struct, you must follow std140 layout. Among other things `vec3` and `vec4` must be 16 byte aligned.
         //   I assume the alignment is relative to the start of the buffer, not necessarily in the actual RAM.
-        // In vertex shaders use: `uniform(set = 1, binding = 0) uniform MyUniforms {...}`.
-        // In fragment shaders use: `uniform(set = 3, binding = 0) uniform MyUniforms {...}`.
+        // In vertex shaders use: `uniform(set = 1, binding = MySlotIndex) uniform MyUniforms {...}`.
+        // In fragment shaders use: `uniform(set = 3, binding = MySlotIndex) uniform MyUniforms {...}`.
         // NOTE: SDL says it's fine to call this both outside of passes and DURING render passes (or compute passes).
-        // Also SDL says you have 4 uniform slots per shader. See:  https://wiki.libsdl.org/SDL3/CategoryGPU#uniform-data
+        // The slot indices are independent per stage, and SDL says you have 4 slots per stage (https://wiki.libsdl.org/SDL3/CategoryGPU#uniform-data).
         // `glslc` rejects standalone uniforms (as opposed to struct-like `{...}`), other than samplers.
-        // Note that samplers don't go through this mechanism at all, they are bound by `RenderPass::BindTextures()`.
+        // Note that samplers don't go through this mechanism at all (and don't occupy those slots), they are bound by `RenderPass::BindTextures()`.
         static void SetUniformBytes(CommandBuffer &cmdbuf, Stage stage, std::uint32_t slot, std::span<const unsigned char> span);
 
         // Sets the uniform value to a specific object.

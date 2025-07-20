@@ -4,12 +4,19 @@
 
 #include <fmt/format.h>
 #include <fmt/ranges.h>
+#include <SDL3/SDL_cpuinfo.h>
 #include <SDL3/SDL_timer.h>
 
 #include <vector>
 
 namespace em
 {
+    int Process::NumCpuCores()
+    {
+        static int ret = SDL_GetNumLogicalCPUCores();
+        return ret;
+    }
+
     void Process::CheckOrWait(bool wait)
     {
         ThrowIfNull();
@@ -94,7 +101,30 @@ namespace em
         std::vector<const char *> argv;
         argv.reserve(args.size() + 1);
 
-        for (zstring_view arg : args)
+        for (const auto &arg : args)
+            argv.push_back(arg.c_str());
+        argv.push_back(nullptr);
+
+        *this = Process(argv.data(), std::move(output_callback));
+    }
+
+    Process::Process(std::span<const std::string_view> args, OutputCallback output_callback)
+    {
+        std::vector<std::string> str_args;
+        str_args.reserve(args.size());
+
+        for (const auto &arg : args)
+            str_args.emplace_back(arg);
+
+        *this = Process(str_args, std::move(output_callback));
+    }
+
+    Process::Process(std::span<const std::string> args, OutputCallback output_callback)
+    {
+        std::vector<const char *> argv;
+        argv.reserve(args.size() + 1);
+
+        for (const auto &arg : args)
             argv.push_back(arg.c_str());
         argv.push_back(nullptr);
 
@@ -106,7 +136,7 @@ namespace em
         if (state.handle)
         {
             Kill(true); // I guess force this?
-            SDL_DestroyProcess(state.handle);
+            Detach();
         }
     }
 
@@ -120,6 +150,15 @@ namespace em
         if (state.handle && !state.exit_code)
         {
             SDL_KillProcess(state.handle, force);
+        }
+    }
+
+    void Process::Detach()
+    {
+        if (state.handle)
+        {
+            SDL_DestroyProcess(state.handle);
+            state = {};
         }
     }
 }

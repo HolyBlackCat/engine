@@ -6,7 +6,9 @@
 #include <SDL3/SDL_process.h>
 
 #include <functional>
+#include <memory>
 #include <string_view>
+#include <string>
 
 namespace em
 {
@@ -18,8 +20,25 @@ namespace em
     class Process
     {
       public:
+        // This is here just for completeness. This counts the logical cores (as it should).
+        [[nodiscard]] static int NumCpuCores();
+
         using OutputCallback = std::function<void(std::string_view data)>;
 
+        [[nodiscard]] static OutputCallback WriteOutputToString(std::shared_ptr<std::string> target, std::size_t max_bytes)
+        {
+            return [target = std::move(target), remaining_bytes = max_bytes](std::string_view data) mutable
+            {
+                if (remaining_bytes == 0)
+                    return;
+                if (remaining_bytes < data.size())
+                    data.remove_suffix(data.size() - remaining_bytes);
+                *target += data;
+                remaining_bytes -= data.size();
+            };
+        }
+
+      private:
         struct State
         {
             SDL_Process *handle = nullptr;
@@ -49,6 +68,8 @@ namespace em
         // In this overload, `argv` is required to have a null element at the end.
         explicit Process(const char *const *argv, OutputCallback output_callback = nullptr);
         explicit Process(std::span<const zstring_view> args, OutputCallback output_callback = nullptr);
+        explicit Process(std::span<const std::string_view> args, OutputCallback output_callback = nullptr);
+        explicit Process(std::span<const std::string> args, OutputCallback output_callback = nullptr);
 
         Process(Process &&other) noexcept
             : state(std::move(other.state))
@@ -87,12 +108,15 @@ namespace em
         // Doesn't zero this instance, you can still query the information about the process.
         void Kill(bool force);
 
+        // Zeroes this instance without stopping the process. Does nothing if already null.
+        void Detach();
+
 
         // Blocks until the process finishes.
         void WaitUntilFinished() {CheckOrWait(true);}
 
         // Checks the current process state, returns true if it has finished.
-        [[nodiscard]] bool CheckIfFinished() {CheckOrWait(false); return bool(state.exit_code);}
+        [[nodiscard]] bool CheckIfFinished() {CheckOrWait(false); return KnownToBeFinished();}
 
         // Returns true if we know the process has finished. Doesn't actually check the process,
         //   but simply returns true if we have called `WaitUntilFinished()` before, or if `CheckIfFinished()` returned true before.
