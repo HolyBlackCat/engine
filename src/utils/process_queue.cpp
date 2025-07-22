@@ -56,12 +56,20 @@ namespace em
                         first_nonzero_exit_code = job.process.ExitCode();
                 }
 
-                // Run the callback.
+                bool stop_queue = params.stop_on_failure && job.process.ExitCode();
+
+                // Run the callback:
+
                 Status this_status = MakeStatus();
-                // Correct the numbers a bit.
-                this_status.num_finished++;
-                if (next_task_index == tasks.size())
-                    this_status.num_running--;
+
+                // Adjust the status a bit.
+                {
+                    this_status.num_finished++;
+                    if (stop_queue)
+                        this_status.num_running = 0;
+                    else if (next_task_index == tasks.size())
+                        this_status.num_running--;
+                }
                 params.status_callback(job, this_status);
 
                 // Stop all jobs on failure, if enabled. But only after the callback, for nicer numbers.
@@ -138,11 +146,11 @@ namespace em
                     Terminal::SendAnsiResetSequence(stderr); // Reset the syling after the output.
                     if (!job.output->ends_with('\n'))
                         std::fputs("\n(missing newline at the end of output)\n", stderr); // Unlike `puts`, `fputs` doesn't append a newline.
-                }
 
-                // Report the error again.
-                if (job.process.ExitCode() != 0)
-                    fmt::print(stderr, "[Failed] This job above has failed!\n");
+                    // Report the error again.
+                    if (job.process.ExitCode() != 0)
+                        fmt::print(stderr, "[Failed] The job above has failed\n");
+                }
 
                 if (!status.IsFinished())
                 {
@@ -163,11 +171,11 @@ namespace em
                 {
                     fmt::print(
                         stderr,
-                        "-- {}/{} done, {} failed! --\n",
+                        "-- {}/{} done, {} failed!{} --\n",
                         status.num_finished,
                         status.num_total,
                         status.num_failed,
-                        stop_on_failure ? " Stopping..." : ""
+                        stop_on_failure ? " Stopping." : ""
                     );
                 }
             };
