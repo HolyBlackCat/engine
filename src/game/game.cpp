@@ -11,6 +11,7 @@
 #include "mainloop/main.h"
 #include "mainloop/reflected_app.h"
 #include "utils/filesystem.h"
+#include "utils/process_queue.h"
 #include "utils/reinterpret_span.h"
 #include "sdl/sdl.h"
 #include "sdl/window.h"
@@ -69,6 +70,17 @@ struct GameApp : App::Module
 
     GameApp()
     {
+        ProcessQueue queue(
+            {
+                ProcessQueue::Task{.name = "A", .command = {"bash","-c","sleep 3 && echo A!!"}},
+                ProcessQueue::Task{.name = "B", .command = {"bash","-c","sleep 2 && echo B!!"}},
+                ProcessQueue::Task{.name = "C", .command = {"bash","-c","sleep 1 && cat"}, .input = "Hello!"},
+                ProcessQueue::Task{.name = "D", .command = {"bash","-c","sleep 1 && echo D!!"}},
+                ProcessQueue::Task{.name = "E", .command = {"bash","-c","sleep 1 && echo E!!"}},
+            }
+        );
+        (void)queue.WaitUntilFinished();
+
         Vertex verts[3] = {
             {
                 .pos = fvec3(0, 0.5, 0),

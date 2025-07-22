@@ -8,12 +8,16 @@
 
 namespace em
 {
-    ProcessQueue::Job ProcessQueue::StartJob(const Task &task)
+    ProcessQueue::Job ProcessQueue::StartJob(Task &&task)
     {
         auto str = std::make_shared<std::string>();
         return {
             .name = task.name,
-            .process = Process(task.command, Process::WriteOutputToString(str, params.max_output_bytes)),
+            .process = Process(task.command,
+                {
+                    .input = task.input ? Process::InputFromString(std::move(*task.input)) : nullptr,
+                    .output = Process::OutputToString(str, params.max_output_bytes),
+                }),
             .output = std::move(str),
         };
     }
@@ -82,7 +86,7 @@ namespace em
                 // Try to start a new job.
                 if (next_task_index < tasks.size())
                 {
-                    job = StartJob(tasks[next_task_index++]);
+                    job = StartJob(std::move(tasks[next_task_index++]));
                     i++;
                     continue;
                 }
@@ -110,11 +114,6 @@ namespace em
             else
                 break;
         }
-    }
-
-    ProcessQueue::Params ProcessQueue::DefaultConstructParams()
-    {
-        return {};
     }
 
     ProcessQueue::ProcessQueue(std::vector<Task> new_tasks, Params new_params)
@@ -184,7 +183,7 @@ namespace em
         // Start the first jobs.
         jobs.reserve(std::size_t(params.num_jobs));
         for (std::size_t i = 0; i < std::size_t(params.num_jobs); i++)
-            jobs.push_back(StartJob(tasks[i]));
+            jobs.push_back(StartJob(std::move(tasks[i])));
         next_task_index = std::size_t(params.num_jobs);
     }
 

@@ -5,7 +5,9 @@
 #include <SDL3/SDL_iostream.h>
 #include <SDL3/SDL_process.h>
 
+#include <cstddef>
 #include <functional>
+#include <initializer_list>
 #include <memory>
 #include <string_view>
 #include <string>
@@ -23,9 +25,39 @@ namespace em
         // This is here just for completeness. This counts the logical cores (as it should).
         [[nodiscard]] static int NumCpuCores();
 
+        // See `InputCallback` below.
+        // Writes `data`, returns the number of bytes successfully written. Never blocks.
+        using WriteFunc = std::function<std::size_t(std::string_view data)>;
+        // Emits process input.
+        // This might be called multiple times.
+        // Call `write()` as many times as you like (makes more sense to do less calls with larger buffers).
+        // `write` never blocks, and returns the number of bytes successfully written. If it returns less than what you passed,
+        //   it's a good sign that you should return for now, and try writing those bytes again the next time your callback is called.
+        // Your callback should return `true` when it doesn't want to write anything else, that closes the stream.
+        using InputCallback = std::function<bool(WriteFunc write)>;
+
+        // Receives process output.
+        // This might be called multiple times with parts of the output.
         using OutputCallback = std::function<void(std::string_view data)>;
 
-        [[nodiscard]] static OutputCallback WriteOutputToString(std::shared_ptr<std::string> target, std::size_t max_bytes)
+        struct Params
+        {
+            InputCallback input = nullptr;
+            OutputCallback output = nullptr;
+        };
+
+        [[nodiscard]] static InputCallback InputFromString(std::string input)
+        {
+            return [input = std::move(input), pos = 0zu](WriteFunc write) mutable -> bool
+            {
+                std::string_view substr = std::string_view(input).substr(pos);
+                std::size_t bytes_written = write(substr);
+                pos += bytes_written;
+                return pos == input.size();
+            };
+        }
+
+        [[nodiscard]] static OutputCallback OutputToString(std::shared_ptr<std::string> target, std::size_t max_bytes)
         {
             return [target = std::move(target), remaining_bytes = max_bytes](std::string_view data) mutable
             {
@@ -49,15 +81,21 @@ namespace em
             // If not null, the process has finished running and we known about it.
             std::optional<int> exit_code;
 
-            // The output stream. If null, it means we didn't redirect the output.
-            SDL_IOStream *output_stream = nullptr;
+            // Those two are null if we didn't redirect input.
+            SDL_IOStream *input_stream = nullptr;
+            InputCallback input_callback;
 
-            // The output callback. If null, it means we didn't redirect the output.
+            // Those two are null if we didn't redirect output.
+            SDL_IOStream *output_stream = nullptr;
             OutputCallback output_callback;
         };
         State state;
 
+        void WriteMoreInput();
+        void ReadMoreOutput();
         void CheckOrWait(bool wait);
+
+        [[nodiscard]] static Params DefaultConstructParams() {return {};} // Stupid Clang bugs!
 
       public:
         constexpr Process() {}
@@ -66,10 +104,12 @@ namespace em
         // `output_callback` is always called synchronously in the same thread, when some of the functions below are called to check the process status.
         // If `output_callback` is not specified, the process stdout and stderr are not redirected.
         // In this overload, `argv` is required to have a null element at the end.
-        explicit Process(const char *const *argv, OutputCallback output_callback = nullptr);
-        explicit Process(std::span<const zstring_view> args, OutputCallback output_callback = nullptr);
-        explicit Process(std::span<const std::string_view> args, OutputCallback output_callback = nullptr);
-        explicit Process(std::span<const std::string> args, OutputCallback output_callback = nullptr);
+        explicit Process(const char *const *               argv, Params params = DefaultConstructParams());
+        explicit Process(std::span<const zstring_view    > args, Params params = DefaultConstructParams());
+        explicit Process(std::span<const std::string_view> args, Params params = DefaultConstructParams());
+        explicit Process(std::span<const std::string     > args, Params params = DefaultConstructParams());
+        // Allow passing a braced list directly. Otherwise we get an ambiguity with the constructors above.
+        explicit Process(std::initializer_list<const char *> args, Params params = DefaultConstructParams());
 
         Process(Process &&other) noexcept
             : state(std::move(other.state))

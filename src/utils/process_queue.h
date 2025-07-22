@@ -19,6 +19,9 @@ namespace em
         {
             std::string name;
             std::vector<std::string> command;
+
+            // If not null, we send this string to the standard input.
+            std::optional<std::string> input{};
         };
 
         // A job that the queue runs internally.
@@ -85,11 +88,11 @@ namespace em
 
         std::vector<Job> jobs;
 
-        [[nodiscard]] Job StartJob(const Task &task);
+        [[nodiscard]] Job StartJob(Task &&task);
         [[nodiscard]] Status MakeStatus() const;
         void CheckOrWait(bool wait);
 
-        [[nodiscard]] static Params DefaultConstructParams();
+        [[nodiscard]] static Params DefaultConstructParams() {return {};} // Stupid Clang bugs!
 
       public:
         ProcessQueue() {}
