@@ -24,76 +24,57 @@ namespace em
             return; // Nothing to do.
 
         // Repeat this a few times, in case the user callback doesn't write all it can in one sitting (which is unwise).
-        // And also flushing the stream could help us progress? I'm not sure if flushing even does anything for pipes,
-        //   but the SDL tests do it, so I do it too, just in case.
+        // Here we don't flush the stream, because that seems to be unnecessary: https://github.com/libsdl-org/SDL/issues/13412
 
-        // We refuse to flush repeatedly if we still can't write anything.
-        // This variable is true if we just flushed, without successfully writing anything after that.
-        bool can_flush = true;
-
-        while (true) // While flushing works...
+        while (true)
         {
-            while (true) // While the user callback has data to write...
+            bool callback_had_data = false;
+            bool stream_is_full = false;
+            bool stream_error = false;
+
+            bool eof = state.input_callback([&](std::string_view data) -> std::size_t
             {
-                bool callback_had_data = false;
-                bool stream_is_full = false;
-                bool stream_error = false;
+                if (data.empty())
+                    return 0; // Nothing to do. Don't want to update the variable below.
 
-                bool eof = state.input_callback([&](std::string_view data) -> std::size_t
+                callback_had_data = true;
+
+                std::size_t bytes_written = 0;
+
+                while (true)
                 {
-                    if (data.empty())
-                        return 0; // Nothing to do. Don't want to update the variable below.
+                    bytes_written += SDL_WriteIO(state.input_stream, data.data() + bytes_written, data.size() - bytes_written);
 
-                    callback_had_data = true;
+                    if (bytes_written < data.size() && SDL_GetIOStatus(state.input_stream) == SDL_IO_STATUS_READY)
+                        continue; // Write in blocks if needed? I had to do this when writing in large chunks (100k bytes).
 
-                    std::size_t bytes_written = 0;
-
-                    while (true)
-                    {
-                        bytes_written += SDL_WriteIO(state.input_stream, data.data() + bytes_written, data.size() - bytes_written);
-
-                        if (bytes_written < data.size() && SDL_GetIOStatus(state.input_stream) == SDL_IO_STATUS_READY)
-                            continue; // Write in blocks if needed? I had to do this when writing in large chunks (100k bytes).
-
-                        break;
-                    }
-
-                    if (bytes_written < data.size())
-                    {
-                        if (SDL_GetIOStatus(state.input_stream) == SDL_IO_STATUS_NOT_READY)
-                            stream_is_full = true; // Out of space? We better flush.
-                        else
-                            stream_error = true; // Something else is wrong.
-                    }
-                    if (bytes_written > 0)
-                        can_flush = true;
-
-                    return bytes_written;
-                });
-
-                // Close the stream if the callback says it's done, or if the stream has errored.
-                if (eof || stream_error)
-                {
-                    // Must close the stream explicitly. The SDL tests do it like this too.
-                    SDL_CloseIO(state.input_stream);
-                    state.input_stream = nullptr;
-                    state.input_callback = {};
-                    return;
+                    break;
                 }
 
-                // Flush if needed.
-                if (stream_is_full)
-                    break;
+                if (bytes_written < data.size())
+                {
+                    if (SDL_GetIOStatus(state.input_stream) == SDL_IO_STATUS_NOT_READY)
+                        stream_is_full = true; // Out of space? Exit for now and retry later.
+                    else
+                        stream_error = true; // Something else is wrong.
+                }
+
+                return bytes_written;
+            });
+
+            // Close the stream if the callback says it's done, or if the stream has errored.
+            if (eof || stream_error)
+            {
+                // Must close the stream explicitly. The SDL tests do it like this too.
+                SDL_CloseIO(state.input_stream);
+                state.input_stream = nullptr;
+                state.input_callback = {};
+                return;
             }
 
-            // Can't write more data, it's time to flush.
-
-            if (!can_flush)
-                break; // Another flush just failed, no point in trying again. Return for now, will return later.
-
-            // Actually flush.
-            SDL_FlushIO(state.input_stream);
-            can_flush = false; // At most once, until some write succeeds.
+            // Stop for now if the pipe doesn't accept any more data.
+            if (stream_is_full)
+                break;
         }
     }
 
