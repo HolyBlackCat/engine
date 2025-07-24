@@ -1503,6 +1503,8 @@ override buildsystem-cmake = \
 			$(call, ### Set the `ROOT_PATH` modes. If you use a toolchain file, it probably sets all the same flags.)\
 			-DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY\
 		)\
+		$(call, ### Temporarily disable modules until I figure out how to run clang-scan-deps in quasi-msys2.)\
+		-DCMAKE_CXX_SCAN_FOR_MODULES=OFF\
 		$(if $(CMAKE_GENERATOR),$(call quote,-G$(CMAKE_GENERATOR)))\
 		$(__libsetting_cmake_flags_$(__lib_name))\
 		>>$(call quote,$(__log_path))\
