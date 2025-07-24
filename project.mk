@@ -120,7 +120,7 @@ $(call Library,fmt,https://github.com/fmtlib/fmt/releases/download/11.2.0/fmt-11
 
 
 # Using a commit directly from `master` because new CMake chokes on release 1.24.3.
-$(call Library,openal_soft,https://github.com/kcat/openal-soft/archive/b71d4a11c699eaabf59858a4f3211c92da14c977.zip)
+$(call Library,openal_soft,https://github.com/kcat/openal-soft/archive/b72944e4c36486fee75f1c654321fed82dfa20b5.zip)
   # I think AL can also utlize zlib, but we don't build zlib for now, and it's not clear what it gives AL anyway.
   $(call LibrarySetting,deps,sdl3)
   # `ALSOFT_UTILS=FALSE` disables helper executables. Otherwise Windows builds fail because of missing Qt.
