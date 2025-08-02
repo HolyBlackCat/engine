@@ -10,10 +10,7 @@
 #include "gpu/transfer_buffer.h"
 #include "mainloop/main.h"
 #include "mainloop/reflected_app.h"
-#include "strings/trim.h"
 #include "utils/filesystem.h"
-#include "utils/process_queue.h"
-#include "utils/reinterpret_span.h"
 #include "sdl/sdl.h"
 #include "sdl/window.h"
 
@@ -71,13 +68,6 @@ struct GameApp : App::Module
 
     GameApp()
     {
-        std::cout << "[" << R"(
-            int main()
-            {
-                std::cout << "Sup\n";
-            }
-        )" << "]\n";
-
         Vertex verts[3] = {
             {
                 .pos = fvec3(0, 0.5, 0),
@@ -97,7 +87,7 @@ struct GameApp : App::Module
         Gpu::CommandBuffer cmdbuf(gpu);
         Gpu::CopyPass pass(cmdbuf);
 
-        buffer = Gpu::Buffer(gpu, pass, reinterpret_span<unsigned char>(verts));
+        buffer = Gpu::Buffer(gpu, pass, verts);
     }
 
     App::Action Tick() override
