@@ -4,11 +4,8 @@
 #include "em/zstring_view.h"
 #include "utils/blob.h"
 
-#include <cstddef>
 #include <cstdint>
 #include <cstdio>
-#include <memory>
-#include <span>
 #include <string_view>
 #include <utility>
 #ifdef _WIN32

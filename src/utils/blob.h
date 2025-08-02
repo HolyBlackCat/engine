@@ -4,6 +4,7 @@
 #include "em/meta/common.h"
 #include "em/meta/zero_moved_from.h"
 #include "em/zstring_view.h"
+#include "utils/byte_view.h"
 
 #include <concepts>
 #include <cstring>
@@ -82,14 +83,11 @@ namespace em
         }
 
         // Non-owning string view. Null-terminated.
-        basic_blob(NonOwning, zstring_view str) noexcept
+        basic_blob(NonOwning, byte_view view) noexcept
         {
-            data_size = str.size();
-            ptr = decltype(ptr)(std::shared_ptr<void>{}, reinterpret_cast<const unsigned char *>(str.data()));
+            data_size = view.size();
+            ptr = decltype(ptr)(std::shared_ptr<void>{}, reinterpret_cast<const unsigned char *>(view.data()));
         }
-
-        // Non-owning string reference. Null-terminated.
-        basic_blob(NonOwning, const std::string &str) noexcept : basic_blob(NonOwning{}, zstring_view(str)) {}
 
 
         struct OwningSdl {explicit OwningSdl() = default;};

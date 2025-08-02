@@ -10,6 +10,7 @@
 #include "gpu/transfer_buffer.h"
 #include "mainloop/main.h"
 #include "mainloop/reflected_app.h"
+#include "strings/trim.h"
 #include "utils/filesystem.h"
 #include "utils/process_queue.h"
 #include "utils/reinterpret_span.h"
@@ -70,16 +71,12 @@ struct GameApp : App::Module
 
     GameApp()
     {
-        ProcessQueue queue(
+        std::cout << "[" << R"(
+            int main()
             {
-                ProcessQueue::Task{.name = "A", .command = {"bash","-c","sleep 3 && echo A!!"}},
-                ProcessQueue::Task{.name = "B", .command = {"bash","-c","sleep 2 && echo B!!"}},
-                ProcessQueue::Task{.name = "C", .command = {"bash","-c","sleep 1 && cat"}, .input = "Hello!"},
-                ProcessQueue::Task{.name = "D", .command = {"bash","-c","sleep 1 && echo D!!"}},
-                ProcessQueue::Task{.name = "E", .command = {"bash","-c","sleep 1 && echo E!!"}},
+                std::cout << "Sup\n";
             }
-        );
-        (void)queue.WaitUntilFinished();
+        )" << "]\n";
 
         Vertex verts[3] = {
             {
