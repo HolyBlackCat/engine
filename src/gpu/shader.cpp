@@ -11,7 +11,7 @@
 
 namespace em::Gpu
 {
-    Shader::Shader(Device &device, zstring_view name, Stage stage, std::span<const unsigned char> spirv_binary)
+    Shader::Shader(Device &device, zstring_view name, Stage stage, const_byte_view spirv_binary)
         : Shader() // Ensure cleanup on throw.
     {
         SDL_ShaderCross_ShaderStage shadercross_stage{};
@@ -31,7 +31,7 @@ namespace em::Gpu
         }
 
         SDL_ShaderCross_SPIRV_Info input{
-            .bytecode = spirv_binary.data(),
+            .bytecode = reinterpret_cast<const unsigned char *>(spirv_binary.data()),
             .bytecode_size = spirv_binary.size(),
             // This seems to be fixed?
             // `glslc` complains if `main` is missing. They have the `-fentry-point=X` flag, but that seems to be only for HLSL (according to `--help`,
@@ -63,19 +63,19 @@ namespace em::Gpu
             SDL_ReleaseGPUShader(state.device, state.shader);
     }
 
-    void Shader::SetUniformBytes(CommandBuffer &cmdbuf, Stage stage, std::uint32_t slot, std::span<const unsigned char> span)
+    void Shader::SetUniformBytes(CommandBuffer &cmdbuf, Stage stage, std::uint32_t slot, const_byte_view bytes)
     {
         // None of those functions can fail.
         switch (stage)
         {
           case Stage::vertex:
-            SDL_PushGPUVertexUniformData(cmdbuf.Handle(), slot, span.data(), std::uint32_t(span.size()));
+            SDL_PushGPUVertexUniformData(cmdbuf.Handle(), slot, bytes.data(), std::uint32_t(bytes.size()));
             return;
           case Stage::fragment:
-            SDL_PushGPUFragmentUniformData(cmdbuf.Handle(), slot, span.data(), std::uint32_t(span.size()));
+            SDL_PushGPUFragmentUniformData(cmdbuf.Handle(), slot, bytes.data(), std::uint32_t(bytes.size()));
             return;
           case Stage::compute:
-            SDL_PushGPUComputeUniformData(cmdbuf.Handle(), slot, span.data(), std::uint32_t(span.size()));
+            SDL_PushGPUComputeUniformData(cmdbuf.Handle(), slot, bytes.data(), std::uint32_t(bytes.size()));
             return;
         }
 

@@ -1,9 +1,9 @@
 #pragma once
 
 #include "em/zstring_view.h"
+#include "utils/byte_view.h"
 
 #include <cstdint>
-#include <span>
 
 
 typedef struct SDL_GPUDevice SDL_GPUDevice;
@@ -37,7 +37,7 @@ namespace em::Gpu
         };
 
         // The name is optional.
-        Shader(Device &device, zstring_view name, Stage stage, std::span<const unsigned char> spirv_binary);
+        Shader(Device &device, zstring_view name, Stage stage, const_byte_view spirv_binary);
 
         Shader(Shader &&other) noexcept;
         Shader &operator=(Shader other) noexcept;
@@ -56,7 +56,7 @@ namespace em::Gpu
         // The slot indices are independent per stage, and SDL says you have 4 slots per stage (https://wiki.libsdl.org/SDL3/CategoryGPU#uniform-data).
         // `glslc` rejects standalone uniforms (as opposed to struct-like `{...}`), other than samplers.
         // Note that samplers don't go through this mechanism at all (and don't occupy those slots), they are bound by `RenderPass::BindTextures()`.
-        static void SetUniformBytes(CommandBuffer &cmdbuf, Stage stage, std::uint32_t slot, std::span<const unsigned char> span);
+        static void SetUniformBytes(CommandBuffer &cmdbuf, Stage stage, std::uint32_t slot, const_byte_view bytes);
 
         // Sets the uniform value to a specific object.
         template <typename T>

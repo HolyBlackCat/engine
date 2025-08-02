@@ -25,7 +25,7 @@ namespace em::Gpu
             throw std::runtime_error(fmt::format("Unable to create GPU buffer: {}", SDL_GetError()));
     }
 
-    Buffer::Buffer(Device &device, CopyPass &pass, std::span<const unsigned char> data, Usage usage)
+    Buffer::Buffer(Device &device, CopyPass &pass, const_byte_view data, Usage usage)
         : Buffer(device, std::uint32_t(data.size()), usage)
     {
         TransferBuffer tb(device, data);

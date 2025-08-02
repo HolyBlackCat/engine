@@ -31,10 +31,10 @@ namespace em::Gpu
             throw std::runtime_error(fmt::format("Unable to create GPU transfer buffer: {}", SDL_GetError()));
     }
 
-    TransferBuffer::TransferBuffer(Device &device, std::span<const unsigned char> data)
+    TransferBuffer::TransferBuffer(Device &device, const_byte_view data)
         : TransferBuffer(device, std::uint32_t(data.size()))
     {
-        LoadFromMemory(data.data());
+        LoadFromMemory(reinterpret_cast<const unsigned char *>(data.data()));
     }
 
     TransferBuffer::TransferBuffer(TransferBuffer &&other) noexcept
@@ -93,7 +93,8 @@ namespace em::Gpu
     void TransferBuffer::LoadFromMemory(const unsigned char *source)
     {
         Mapping m = Map();
-        std::memcpy(m.Span().data(), source, m.Span().size());
+        auto bytes = m.AsRangeOf<char>();
+        std::memcpy(bytes.data(), source, bytes.size());
     }
 
     void TransferBuffer::ApplyToBuffer(CopyPass &pass, std::uint32_t self_offset, Buffer &target, std::uint32_t target_offset, std::uint32_t size)

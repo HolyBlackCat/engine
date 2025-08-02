@@ -1,9 +1,9 @@
 #pragma once
 
 #include "em/math/vector.h"
+#include "utils/byte_view.h"
 
 #include <cstdint>
-#include <span>
 
 typedef struct SDL_GPUDevice SDL_GPUDevice;
 typedef struct SDL_GPUTransferBuffer SDL_GPUTransferBuffer;
@@ -46,7 +46,7 @@ namespace em::Gpu
         TransferBuffer(Device &device, std::uint32_t size, Usage usage = Usage::upload);
 
         // A helper constructor that fills this entirely from memory.
-        TransferBuffer(Device &device, std::span<const unsigned char> data);
+        TransferBuffer(Device &device, const_byte_view data);
 
         TransferBuffer(TransferBuffer &&other) noexcept;
         TransferBuffer &operator=(TransferBuffer other) noexcept;
@@ -65,7 +65,7 @@ namespace em::Gpu
             {
                 SDL_GPUDevice *device = nullptr;
                 SDL_GPUTransferBuffer *buffer = nullptr;
-                std::span<unsigned char> mapped_region;
+                mut_byte_view mapped_region;
             };
             State state;
 
@@ -80,7 +80,8 @@ namespace em::Gpu
 
             // Returns the mapped region.
             // This is const, because this class is modelled like a pointer.
-            [[nodiscard]] std::span<unsigned char> Span() const {return state.mapped_region;}
+            template <mut_byte_view_reinterpretable_as_range_of T>
+            [[nodiscard]] std::span<T> AsRangeOf() const {return state.mapped_region.AsRangeOf<T>();}
         };
 
         // Maps the buffer into memory temporarily. Throws on failure.

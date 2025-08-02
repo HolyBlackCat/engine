@@ -1,11 +1,11 @@
 #pragma once
 
 #include "em/macros/utils/flag_enum.h"
+#include "utils/byte_view.h"
 
 #include <SDL3/SDL_gpu.h>
 
 #include <cstdint>
-#include <span>
 
 namespace em::Gpu
 {
@@ -56,7 +56,7 @@ namespace em::Gpu
         // Creates a buffer.
         Buffer(Device &device, std::uint32_t size, Usage usage = Usage::vertex);
         // A helper constructor that creates a buffer and immediately fills it using a temporary transfer buffer.
-        Buffer(Device &device, CopyPass &pass, std::span<const unsigned char> data, Usage usage = Usage::vertex);
+        Buffer(Device &device, CopyPass &pass, const_byte_view data, Usage usage = Usage::vertex);
 
         Buffer(Buffer &&other) noexcept;
         Buffer &operator=(Buffer other) noexcept;

@@ -83,7 +83,7 @@ namespace em
         }
 
         // Non-owning string view. Null-terminated.
-        basic_blob(NonOwning, byte_view view) noexcept
+        basic_blob(NonOwning, const_byte_view view) noexcept
         {
             data_size = view.size();
             ptr = decltype(ptr)(std::shared_ptr<void>{}, reinterpret_cast<const unsigned char *>(view.data()));
