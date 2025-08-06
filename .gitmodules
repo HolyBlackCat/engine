@@ -13,3 +13,6 @@
 [submodule "deps/zstring_view"]
 	path = deps/zstring_view
 	url = https://github.com/HolyBlackCat/zstring_view
+[submodule "deps/cppdecl"]
+	path = deps/cppdecl
+	url = https://github.com/HolyBlackCat/cppdecl
