@@ -40,7 +40,7 @@ PROJ_CXXFLAGS += -Wconversion -Wno-implicit-int-float-conversion# Conversion war
 PROJ_CXXFLAGS += -ftemplate-backtrace-limit=0
 PROJ_CXXFLAGS += -fmacro-backtrace-limit=1# 1 = minimal, 0 = infinite
 PROJ_CXXFLAGS += -Isrc
-PROJ_CXXFLAGS += -Ideps/macros/include -Ideps/math/include -Ideps/meta/include -Ideps/reflection/include -Ideps/zstring_view/include
+PROJ_CXXFLAGS += -Ideps/cppdecl/include -Ideps/macros/include -Ideps/math/include -Ideps/meta/include -Ideps/reflection/include -Ideps/zstring_view/include
 
 ifeq ($(TARGET_OS),windows)
 PROJ_LDFLAGS += $(_win_subsystem)
