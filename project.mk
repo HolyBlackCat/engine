@@ -52,7 +52,7 @@ endif
 # override _pch_rules := src/game/*->src/game/master.hpp
 
 $(call Project,exe,imp-re)
-$(call ProjectSetting,source_dirs,src $(wildcard deps/*/test))
+$(call ProjectSetting,source_dirs,src $(wildcard deps/*/test deps/*/src))
 # $(call ProjectSetting,pch,$(_pch_rules))
 $(call ProjectSetting,libs,*)
 
