@@ -1071,10 +1071,14 @@ $(__outputs) &: override __lang := $(call guess_lang_from_filename,$(__src))
 $(__outputs) &: override __pch := $(__pch)
 $(__outputs) &: override __syntax_only := $(__syntax_only)
 
+# Note that here we still pass `-MMD -MP` even if the file is syntax-only, because those still need to track the headers.
+# And we still pass `-o` for those. No file is created at that location, but that controls where the `.d` file is created.
 $(__outputs) &: $(__src) $(__pch) $(all_lib_log_files)
 	$(call log_now,[$(language_name-$(__lang))$(if $(__syntax_only), syntax only)] $<)
-	@$(call language_command-$(__lang),$<,$(if $(__syntax_only),,$(firstword $(__outputs))),$(__proj),,$(if $(__syntax_only),,output_deps),$(if $(__syntax_only),syntax_only)) $(if $(__syntax_only),&& touch $(firstword $(__outputs)))
+	@$(call language_command-$(__lang),$<,$(firstword $(__outputs)),$(__proj),,output_deps,$(if $(__syntax_only),syntax_only)) $(if $(__syntax_only),&& touch $(firstword $(__outputs)))
 
+override __f = $(call source_files_to_dep_outputs,$(__src),$(__proj))
+$(if $(call safe_wildcard,$(__f)),,$(warning $(__f)))
 -include $(call source_files_to_dep_outputs,$(__src),$(__proj))
 endef
 
