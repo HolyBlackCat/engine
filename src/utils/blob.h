@@ -120,7 +120,7 @@ namespace em
         [[nodiscard]] const unsigned char *end() const {return data() + size();}
 
         [[nodiscard]] operator std::span<const unsigned char>() const {return {ptr.get(), data_size.value};}
-        [[nodiscard]] operator zstring_view() const requires IsNullTerminated {return zstring_view(zstring_view::TrustSpecifiedSize{}, operator std::string_view());}
+        [[nodiscard]] operator zstring_view() const requires IsNullTerminated {return zstring_view(zstring_view::TrustNullTerminated{}, operator std::string_view());}
         // This doesn't work automatically (through `operator zstring_view`) in some cases,
         //   because the compiler refuses to consider more than one user-defined conversion at the same time.
         [[nodiscard]] operator std::string_view() const {return {reinterpret_cast<const char *>(ptr.get()), data_size.value};}
