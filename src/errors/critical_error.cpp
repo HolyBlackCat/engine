@@ -56,10 +56,13 @@ namespace em
         std::abort();
     }
 
-    CriticalErrorHandler::CriticalErrorHandler(Func func)
+    CriticalErrorHandler::CriticalErrorHandler(Func func, bool after_other_handlers)
     {
         std::lock_guard _(entries_mutex);
-        list.emplace_front(std::move(func));
+        if (after_other_handlers)
+            list.emplace_back(std::move(func));
+        else
+            list.emplace_front(std::move(func));
         iter = list.begin();
     }
 
