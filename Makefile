@@ -719,7 +719,9 @@ override lib_cflags = $(strip\
 	$(call, ### Run lib_cflags_low for every library.)\
 	$(foreach x,$(filter-out $(all_lib_stubs),$1),$(call lib_cflags_low,$(call lib_find_packages_for,$x)))\
 	$(call, ### Run pkg-config for libraries that have pkg-config packages.)\
-	$(if $(__pkgs),$(call safe_shell,$(call lib_invoke_pkgconfig,$1) --cflags $(__pkgs)))\
+	$(call, ### Notice that we're rewriting `-I` as `-isystem` to silence warnings in libraries, but this is of course optional.)\
+	$(call, ### Note that this must be synced with the implicit include directories in `lib_cflags_low`.)\
+	$(if $(__pkgs),$(patsubst -I%,-isystem%,$(call safe_shell,$(call lib_invoke_pkgconfig,$1) --cflags $(__pkgs))))\
 	$(__raw_flags)\
 	$(foreach x,$(filter $(all_lib_stubs),$1),$(__libsetting_stub_cflags_$x))\
 	)
@@ -729,7 +731,9 @@ override lib_cflags_low = \
 		$(call var,__pkgs += $1)\
 	,\
 		$(call, ### Use a hardcoded search path.)\
-		$(call var,__raw_flags += -I$(call lib_name_to_base_dir,$x)/$(os_mode_string)/prefix/include)\
+		$(call, ### Notice `-isystem` instead of `-I` to silence warnings in libraries, but this is of course optional.)\
+		$(call, ### Note that this must be synced with the flag rewriting done in `lib_cflags`.)\
+		$(call var,__raw_flags += -isystem$(call lib_name_to_base_dir,$x)/$(os_mode_string)/prefix/include)\
 	)
 
 # Library filename patterns, used by `lib_ldflags` below.
@@ -1077,8 +1081,6 @@ $(__outputs) &: $(__src) $(__pch) $(all_lib_log_files)
 	$(call log_now,[$(language_name-$(__lang))$(if $(__syntax_only), syntax only)] $<)
 	@$(call language_command-$(__lang),$<,$(firstword $(__outputs)),$(__proj),,output_deps,$(if $(__syntax_only),syntax_only)) $(if $(__syntax_only),&& touch $(firstword $(__outputs)))
 
-override __f = $(call source_files_to_dep_outputs,$(__src),$(__proj))
-$(if $(call safe_wildcard,$(__f)),,$(warning $(__f)))
 -include $(call source_files_to_dep_outputs,$(__src),$(__proj))
 endef
 
