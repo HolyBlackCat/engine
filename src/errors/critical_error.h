@@ -39,8 +39,9 @@ namespace em
         CriticalErrorHandler(std::nullptr_t) {}
 
         // The `func` is never going to be moved around, you should store all your state in it.
-        // `func` is `(em::zstring_view message)`. The message is always null-terminated.
-        CriticalErrorHandler(Func func);
+        // `func` is `(em::zstring_view message) -> void`. The message is always null-terminated.
+        // By default the handler is prepended to other handlers. Pass `after_other_handlers == true` to add it after the existing ones instead.
+        CriticalErrorHandler(Func func, bool after_other_handlers = false);
         CriticalErrorHandler(CriticalErrorHandler &&other) noexcept;
         CriticalErrorHandler &operator=(CriticalErrorHandler other) noexcept;
         ~CriticalErrorHandler();
