@@ -127,8 +127,8 @@ $(call Library,openal_soft,https://github.com/kcat/openal-soft/archive/b72944e4c
   # We used to disable other backends here, but it seems our CMake isolation should make this unnecessary.
   $(call LibrarySetting,cmake_flags,-DALSOFT_EXAMPLES=FALSE -DALSOFT_UTILS=FALSE -DALSOFT_REQUIRE_SDL3=TRUE -DALSOFT_BACKEND_SDL3=TRUE)
 
-# $(call Library,phmap,parallel-hashmap-1.4.0.tar.gz)
-#   $(call LibrarySetting,cmake_flags,-DPHMAP_BUILD_TESTS=OFF -DPHMAP_BUILD_EXAMPLES=OFF)# Otherwise it downloads GTest, which is nonsense.
+$(call Library,phmap,https://github.com/greg7mdp/parallel-hashmap/archive/c29681a7777d85e715d0f7c28ce57256abee76e5.zip)
+  $(call LibrarySetting,cmake_flags,-DPHMAP_BUILD_TESTS=OFF -DPHMAP_BUILD_EXAMPLES=OFF)# Otherwise it downloads GTest, which is nonsense.
 
 # ifeq ($(TARGET_OS),emscripten)
 # $(call LibraryStub,sdl3,-sUSE_SDL=3)# This wasn't tested yet.
