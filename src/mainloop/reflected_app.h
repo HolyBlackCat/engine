@@ -19,7 +19,9 @@ namespace em::App
     {
         T underlying;
 
-        ReflectedApp(auto &&... params) : underlying(EM_FWD(params)...) {}
+        ReflectedApp(auto &&... params)
+            requires std::is_constructible_v<T, decltype(params)...>
+            : underlying(EM_FWD(params)...) {}
 
         Action Tick() override
         {

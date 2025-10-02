@@ -52,7 +52,7 @@ namespace em::Gpu
         SDL_ShaderCross_GraphicsShaderMetadata output_metadata{};
 
         // This also outputs some reflection metadata. Do we need it?
-        state.shader = SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(device.Handle(), &input, &output_metadata);
+        state.shader = SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(device.Handle(), &input, &output_metadata, 0);
         if (!state.shader)
             throw std::runtime_error(fmt::format("Unable to compile SPIRV shader: {}", SDL_GetError()));
     }
