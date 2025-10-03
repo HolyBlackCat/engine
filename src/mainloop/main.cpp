@@ -12,7 +12,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     (void)argc;
     (void)argv;
 
-    auto app = em::Main();
+    auto app = em::Main(argc, argv);
     if (!app)
         return SDL_APP_SUCCESS;
 

@@ -6,6 +6,7 @@
 
 namespace em::App
 {
+    // This is used to propagate `Module` member function calls to all members of a reflected class.
     // This is not a base class. Wrap your most derived class in this.
     // This doesn't inherit from `T` because then there seems to be no good way to handle the case where the base class doesn't override
     //   one of the functions, which causes us to recurse infinitely. There are two ways around that kinda looked promising:

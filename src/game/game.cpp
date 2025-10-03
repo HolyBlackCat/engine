@@ -66,8 +66,11 @@ struct GameApp : App::Module
 
     Gpu::Buffer buffer = Gpu::Buffer(gpu, sizeof(fvec3) * 6);
 
-    GameApp()
+    GameApp(int argc, char **argv)
     {
+        (void)argc;
+        (void)argv;
+
         Vertex verts[3] = {
             {
                 .pos = fvec3(0, 0.5, 0),
@@ -127,7 +130,7 @@ struct GameApp : App::Module
     }
 };
 
-std::unique_ptr<App::Module> em::Main()
+std::unique_ptr<App::Module> em::Main(int argc, char **argv)
 {
-    return std::make_unique<App::ReflectedApp<GameApp>>();
+    return std::make_unique<App::ReflectedApp<GameApp>>(argc, argv);
 }
