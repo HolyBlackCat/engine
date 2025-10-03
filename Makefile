@@ -296,12 +296,13 @@ override Project = \
 	$(call var,proj_list += $2)\
 	$(call var,__proj_kind_$(strip $2) := $(strip $1))\
 
-override proj_setting_names := sources source_dirs cflags cxxflags ldflags common_flags flags_func pch deps libs bad_lib_flags lang runtime_env
+override proj_setting_names := sources source_dirs ignored_sources cflags cxxflags ldflags common_flags flags_func pch deps libs bad_lib_flags lang runtime_env
 
 # On success, assigns $2 to variable `__projsetting_$1_<lib>`. Otherwise causes an error.
 # Settings are:
 # * sources - individual source files.
 # * source_dirs - directories to search for source files. The result is combined with `sources`.
+# * ignored_sources - source filenames and patterns (with `*`) that should be ignored in `source_dirs`.
 # * cflags,cxxflags - compiler flags for C and CXX respectively.
 # * ldflags - linker flags.
 # * common_flags - those are added to both `{c,cxx}flags` and `ldflags`.
@@ -974,12 +975,12 @@ $(foreach x,$(proj_list),$(if $(findstring $(__projsetting_libs_$x),*),$(call va
 
 # Find source files.
 override source_file_patterns := $(foreach x,$(language_list),$(language_pattern-$x))
-$(foreach x,$(proj_list),$(call var,__proj_allsources_$x := $(sort \
+$(foreach x,$(proj_list),$(call var,__proj_allsources_$x := $(sort $(filter-out $(subst *,%,$(__projsetting_ignored_sources_$x)),\
 	$(call, ### Individual sources.) \
 	$(__projsetting_sources_$x) \
 	$(call, ### Source directories.) \
 	$(call rwildcard,$(__projsetting_source_dirs_$x),$(source_file_patterns)) \
-)))
+))))
 override all_source_files := $(sort $(foreach x,$(proj_list),$(__proj_allsources_$x)))
 
 # Given filename $1, tries to guess the language. Causes an error on failure.

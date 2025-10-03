@@ -1,3 +1,5 @@
+#ifndef EM_ENABLE_TESTS
+
 #include "main.h"
 
 #include "mainloop/module.h"
@@ -36,3 +38,5 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
     // This is the only callback that can be reached with a null `appstate`.
     delete static_cast<em::App::Module *>(appstate);
 }
+
+#endif // EM_ENABLE_TESTS

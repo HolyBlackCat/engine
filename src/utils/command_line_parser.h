@@ -271,7 +271,7 @@ namespace em::CommandLine
                 }
                 else
                 {
-                    throw std::runtime_error(fmt::format("Positional arguments are not allowed, but got `{}`", this_flag));
+                    throw std::runtime_error(fmt::format("Positional arguments are not allowed, but got `{}`.", this_flag));
                 }
 
                 argv++;

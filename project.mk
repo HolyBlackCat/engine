@@ -40,19 +40,25 @@ PROJ_CXXFLAGS += -Wconversion -Wno-implicit-int-float-conversion# Conversion war
 PROJ_CXXFLAGS += -ftemplate-backtrace-limit=0
 PROJ_CXXFLAGS += -fmacro-backtrace-limit=1# 1 = minimal, 0 = infinite
 PROJ_CXXFLAGS += -Isrc
-PROJ_CXXFLAGS += -Ideps/cppdecl/include -Ideps/macros/include -Ideps/math/include -Ideps/meta/include -Ideps/reflection/include -Ideps/zstring_view/include
+PROJ_CXXFLAGS += -Ideps/cppdecl/include -Ideps/macros/include -Ideps/math/include -Ideps/meta/include -Ideps/minitest/include -Ideps/reflection/include -Ideps/zstring_view/include
 
 ifeq ($(TARGET_OS),windows)
 PROJ_LDFLAGS += $(_win_subsystem)
-# Need this at least for MinGW at the moment. Remove when updating libstdc++ to 15. Bug: https://github.com/llvm/llvm-project/issues/101614
-PROJ_CXXFLAGS += -fno-builtin-std-forward_like
 endif
 
 # The common PCH rules for all projects.
 # override _pch_rules := src/game/*->src/game/master.hpp
 
 $(call Project,exe,imp-re)
-$(call ProjectSetting,source_dirs,src $(wildcard deps/*/test deps/*/src))
+$(call ProjectSetting,source_dirs,src $(filter-out deps/minitest/%,$(wildcard deps/*/test deps/*/src)))
+$(call ProjectSetting,ignored_sources,*.test.cpp)
+# $(call ProjectSetting,pch,$(_pch_rules))
+$(call ProjectSetting,libs,*)
+
+$(call Project,exe,tests)
+$(call ProjectSetting,source_dirs,src $(filter-out deps/minitest/test,$(wildcard deps/*/test deps/*/src)))
+$(call ProjectSetting,sources,deps/minitest/src/main.cpp)
+$(call ProjectSetting,cxxflags,-DEM_ENABLE_TESTS)
 # $(call ProjectSetting,pch,$(_pch_rules))
 $(call ProjectSetting,libs,*)
 
@@ -127,7 +133,7 @@ $(call Library,openal_soft,https://github.com/kcat/openal-soft/archive/b72944e4c
   # We used to disable other backends here, but it seems our CMake isolation should make this unnecessary.
   $(call LibrarySetting,cmake_flags,-DALSOFT_EXAMPLES=FALSE -DALSOFT_UTILS=FALSE -DALSOFT_REQUIRE_SDL3=TRUE -DALSOFT_BACKEND_SDL3=TRUE)
 
-$(call Library,phmap,https://github.com/greg7mdp/parallel-hashmap/archive/c29681a7777d85e715d0f7c28ce57256abee76e5.zip)
+$(call Library,phmap,https://github.com/greg7mdp/parallel-hashmap/archive/88123934b46b77c3b6d80167382734cbff6eff74.zip)
   $(call LibrarySetting,cmake_flags,-DPHMAP_BUILD_TESTS=OFF -DPHMAP_BUILD_EXAMPLES=OFF)# Otherwise it downloads GTest, which is nonsense.
 
 # ifeq ($(TARGET_OS),emscripten)
@@ -140,20 +146,19 @@ $(call Library,phmap,https://github.com/greg7mdp/parallel-hashmap/archive/c29681
 #   $(call LibrarySetting,build_system,copy_files)
 #   $(call LibrarySetting,copy_files,$(_win_sdl3_arch)/*->.)
 # else
-$(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/release-3.2.16/SDL3-3.2.16.tar.gz)
+$(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/release-3.2.22/SDL3-3.2.22.tar.gz)
   $(call LibrarySetting,cmake_allow_using_system_deps,1)
 # $(call Library,sdl3_net,SDL2_net-2.2.0.tar.gz)
 #   $(call LibrarySetting,deps,sdl3)
 # endif
 
-# Update is blocked by bug: https://github.com/libsdl-org/SDL_shadercross/issues/150
-$(call Library,sdl_shadercross,https://github.com/libsdl-org/SDL_shadercross/archive/f0692b162c27cdf11629b19be0e1f6c20d4f6dc4.zip)
+$(call Library,sdl_shadercross,https://github.com/libsdl-org/SDL_shadercross/archive/4ce748310f57d405b4eb2a79fbbc7e974d6491ec.zip)
   $(call LibrarySetting,deps,sdl3 spirv_cross)
   # Disabling HLSL input, only keeping SPIRV input.
   # Enable installation, otherwise CMake installs nothing.
   $(call LibrarySetting,cmake_flags,-DSDLSHADERCROSS_DXC=OFF -DSDLSHADERCROSS_INSTALL=ON)
 
-$(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/1a69a919fa302e92b337594bd0a8aaea61037d91.zip)
+$(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/b26ac3fa8bcfe76c361b56e3284b5276b23453ce.zip)
   # Disabling tests for speed.
   # Switching from static to dynamic libs just in case, in case we need to link it to our own app.
   # Disabling CLI tools because we don't need them and because they need static libs.
@@ -163,7 +168,7 @@ $(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/1
 #   # Disable the executable and enable the library. They only support a static library, whatever.
 #   $(call LibrarySetting,cmake_flags,-DSPIRV_REFLECT_EXECUTABLE=OFF -DSPIRV_REFLECT_STATIC_LIB=ON)
 
-$(call Library,stb,https://github.com/nothings/stb/archive/f58f558c120e9b32c217290b80bad1a0729fbb2c.zip)
+$(call Library,stb,https://github.com/nothings/stb/archive/fede005abaf93d9d7f3a679d1999b2db341b360f.zip)
   $(call LibrarySetting,build_system,dummy)
   # Out of those, `rectpack` is used both by us and ImGui.
   # There's also `textedit`, which ImGui uses and we don't but we let ImGui keep its version, since it's slightly patched.
