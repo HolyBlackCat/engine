@@ -16,3 +16,6 @@
 [submodule "deps/cppdecl"]
 	path = deps/cppdecl
 	url = https://github.com/HolyBlackCat/cppdecl
+[submodule "deps/minitest"]
+	path = deps/minitest
+	url = https://github.com/HolyBlackCat/minitest
