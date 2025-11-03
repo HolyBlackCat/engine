@@ -10,9 +10,11 @@
 #include "gpu/transfer_buffer.h"
 #include "mainloop/main.h"
 #include "mainloop/reflected_app.h"
-#include "utils/filesystem.h"
 #include "sdl/sdl.h"
 #include "sdl/window.h"
+#include "utils/command_line_parser_refl.h"
+#include "utils/command_line_parser.h"
+#include "utils/filesystem.h"
 
 #include <iostream>
 #include <memory>
@@ -68,8 +70,12 @@ struct GameApp : App::Module
 
     GameApp(int argc, char **argv)
     {
-        (void)argc;
-        (void)argv;
+        { // Handle command line flags.
+            CommandLine::Parser args_parser;
+            args_parser.AddDefaultHelpFlag();
+            CommandLine::ReflectFlags(args_parser, *this);
+            args_parser.Parse(argc, argv);
+        }
 
         Vertex verts[3] = {
             {
