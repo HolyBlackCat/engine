@@ -142,7 +142,7 @@ namespace em
                 if (!job.output->empty())
                 {
                     std::fwrite(job.output->data(), job.output->size(), 1, stderr);
-                    Terminal::SendAnsiResetSequence(stderr); // Reset the syling after the output.
+                    Terminal::SendAnsiResetSequence(stderr); // Reset the styling after the output.
                     if (!job.output->ends_with('\n'))
                         std::fputs("\n(missing newline at the end of output)\n", stderr); // Unlike `puts`, `fputs` doesn't append a newline.
 
