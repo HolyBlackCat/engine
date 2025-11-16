@@ -1439,7 +1439,9 @@ prepare-for-storage: clean-everything
 override buildsystem-dummy = \
 	$(file >$(__log_path),)
 
-# List separator for CMake. This does indeed look backwards.
+# List separator for CMake for linux-style paths.
+# On Linux you want `/foo;/bar`. On Windows you want either `C:/foo;C:/bar` or `/c/foo:/c/bar`.
+# `/c/foo;/c/bar` sadly doesn't work on Windows, because the MSYS2 path translation doesn't like `;`-separated lists.
 ifeq ($(HOST_OS),windows)
 cmake_host_sep := :
 else
