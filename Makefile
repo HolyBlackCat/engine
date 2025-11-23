@@ -792,7 +792,8 @@ override lib_uses_url = $(if $(findstring ://,$(__libsetting_url_or_path_$1)),1)
 # If the archive name is "dumb" (e.g. only a commit hash, as can happen when downloading commit zips from github),
 #   we prepend the library name to it. We also strip the `lib` prefix if any.
 override lib_name_to_name_version = $(foreach x,$1,$(call lib_name_to_name_version_low,$x,$(call archive_strip_ext,$(notdir $(__libsetting_url_or_path_$x)))))
-override lib_name_to_name_version_low = $(patsubst lib%,%,$(if $(findstring _,$2)$(findstring -,$2)$(findstring .,$2),$2,$1-$2))
+# If the name contains any of `_-.` and doesn't match `^v[0-9]`, then we assume it contains both a name and a version and use it directly.
+override lib_name_to_name_version_low = $(patsubst lib%,%,$(if $(and $(findstring _,$2)$(findstring -,$2)$(findstring .,$2),$(filter-out 0,$(shell bash -c '[[ $(call quote,$2) =~ '^v[0-9]' ]]')$(.SHELLSTATUS))),$2,$1-$2))
 
 # Given library name $1 (or a list), outputs the archive path for it.
 # $2 is an optional prefix that's prepended to the filename (not to the entire path).
