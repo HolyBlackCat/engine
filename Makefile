@@ -296,7 +296,7 @@ override Project = \
 	$(call var,proj_list += $2)\
 	$(call var,__proj_kind_$(strip $2) := $(strip $1))\
 
-override proj_setting_names := sources source_dirs ignored_sources cflags cxxflags ldflags common_flags flags_func pch deps libs bad_lib_flags lang runtime_env
+override proj_setting_names := sources source_dirs ignored_sources cflags cxxflags ldflags common_flags flags_func pch deps libs bad_lib_flags lang runtime_env linking_depends_on
 
 # On success, assigns $2 to variable `__projsetting_$1_<lib>`. Otherwise causes an error.
 # Settings are:
@@ -313,6 +313,7 @@ override proj_setting_names := sources source_dirs ignored_sources cflags cxxfla
 # * bad_lib_flags - those flags are removed from the library flags (both cflags and ldflags). You can also use replacements here, in the form of `a>>>b`, which may contain `%`.
 # * lang - either `c` or `cpp`. Sets the language for linking and PCH.
 # * runtime_env - a space-separated list of environment variables (`env=value`) for running the resulting binary. Appended to `PROJ_RUNTIME_ENV`.
+# * linking_depends_on - a list of Make dependencies for the linking target.
 override ProjectSetting = \
 	$(if $(filter-out $(proj_setting_names),$1)$(filter-out 1,$(words $1)),$(error Invalid project setting `$1`, expected one of: $(proj_setting_names)))\
 	$(if $(filter 0,$(words $(proj_list))),$(error Must specify project settings after a project))\
@@ -404,6 +405,11 @@ export CXXFLAGS ?=
 export CPPFLAGS ?=
 export LDFLAGS ?=
 
+ifeq ($(TARGET_OS),emscripten)
+CC := emcc
+CXX := em++
+endif
+
 # LDD. We don't care about the Quasi-MSYS2's `win-ldd` wrapper since we can convert paths ourselves. We need it for the native Winwdows anyway.
 # Also an optional program to preprocess the paths from LDD.
 ifeq ($(TARGET_OS),windows)
@@ -441,12 +447,7 @@ APP :=# Target project
 ARGS :=# Flags for running the application.
 
 COMMON_FLAGS :=# Used both when compiling and linking.
-# The linker, e.g. `lld` or `lld-13`. Can be `AUTO` to guess LLD version, or empty to use the default one.
-ifeq ($(TARGET_OS),emscripten)
-LINKER :=
-else
-LINKER := AUTO
-endif
+LINKER := lld
 ALLOW_PCH := 1# If 0 or empty, disable PCH.
 CMAKE_GENERATOR := Ninja# CMake generator, not quoted. Optional.
 CMAKE_BUILD_TOOL := ninja# CMake build tool, such as `make` or `ninja`. Optional. If specified, must match the generator.
@@ -474,6 +475,11 @@ PROJ_CFLAGS :=
 PROJ_CXXFLAGS :=
 PROJ_LDFLAGS :=
 PROJ_RUNTIME_ENV :=# A space-separated list of environment variables (`env=value`), used when running the resulting binary.
+
+PROJ_RUN_WRAPPER :=# This is prepended to the binaries we run.
+ifeq ($(TARGET_OS),emscripten)
+PROJ_RUN_WRAPPER := emrun
+endif
 
 # Host toolchain.
 # `emmake` sets those, but we don't really care what they want the host compiler to be.
@@ -603,9 +609,6 @@ override CC := $(call find_versioned_tool,clang)
 endif
 ifeq ($(CXX),)
 override CXX := $(call find_versioned_tool,clang++)
-endif
-ifeq ($(LINKER),AUTO)
-override LINKER := $(call find_versioned_tool,lld)
 endif
 
 # And the host toolchain.
@@ -1104,7 +1107,7 @@ build-$(__proj): $(__filename) sync-libs-and-assets $(COMMANDS_FILE)
 
 # The actual link target.
 $(__filename): override __proj := $(__proj)
-$(__filename): $(call source_files_to_main_outputs,$(__proj_allsources_$(__proj)),$(__proj)) $(call proj_output_filename,$(__projsetting_deps_$(__proj)))
+$(__filename): $(call source_files_to_main_outputs,$(__proj_allsources_$(__proj)),$(__proj)) $(call proj_output_filename,$(__projsetting_deps_$(__proj))) $(__projsetting_linking_depends_on_$(__proj))
 	$(call log_now,[$(proj_kind_name-$(__proj_kind_$(__proj)))] $@)
 	@$(language_link-$(__projsetting_lang_$(__proj))) $(if $(filter shared,$(__proj_kind_$(__proj))),-shared) -o $@ $(filter %.o,$^) \
 		$(call proj_libs_filtered_flags,ldflags,$(__proj)) \
@@ -1118,7 +1121,7 @@ run-$(__proj): override __proj := $(__proj)
 run-$(__proj): override __filename := $(__filename)
 run-$(__proj): build-$(__proj)
 	$(call log_now,[Running] $(__proj))
-	@$(run_without_buffering)$(PROJ_RUNTIME_ENV) $(__projsetting_runtime_env_$(__proj)) $(__filename) $(ARGS)
+	@$(run_without_buffering)$(PROJ_RUNTIME_ENV) $(__projsetting_runtime_env_$(__proj)) $(PROJ_RUN_WRAPPER) $(__filename) $(ARGS)
 
 # A target to run the project without compiling it.
 .PHONY: run-old-$(__proj)
@@ -1126,7 +1129,7 @@ run-old-$(__proj): override __proj := $(__proj)
 run-old-$(__proj): override __filename := $(__filename)
 run-old-$(__proj):
 	$(call log_now,[Running existing build] $(__proj))
-	@$(run_without_buffering)$(PROJ_RUNTIME_ENV) $(__projsetting_runtime_env_$(__proj)) $(__filename) $(ARGS)
+	@$(run_without_buffering)$(PROJ_RUNTIME_ENV) $(__projsetting_runtime_env_$(__proj)) $(PROJ_RUN_WRAPPER) $(__filename) $(ARGS)
 endif
 
 # Target to clean the project.
