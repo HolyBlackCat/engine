@@ -2,6 +2,11 @@
 
 # This is partially based on: https://www.hanshq.net/command-line-android.html
 
+# TODO improvements:
+# * Migrate from `aapt` to `aapt2`.
+# * Try to avoid spelling the SDK version in the manifest (should be easy via `aapt` flags).
+# * Try to avoid spelling the package name in the manifest (tried all the flags, not sure how to do it).
+
 # --- Preparation:
 # install javac
 #     pacman -S jdk-openjdk
