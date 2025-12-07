@@ -16,7 +16,7 @@ namespace em
             .process = Process(task.command,
                 {
                     .input = task.input ? Process::InputFromString(std::move(*task.input)) : nullptr,
-                    .output = Process::OutputToString(str, params.max_output_bytes),
+                    .output = Process::OutputToString(str, state.params.max_output_bytes),
                 }),
             .output = std::move(str),
         };
@@ -25,11 +25,11 @@ namespace em
     ProcessQueue::Status ProcessQueue::MakeStatus() const
     {
         return {
-            .exit_code = first_nonzero_exit_code,
-            .num_finished = int(next_task_index - jobs.size()),
-            .num_failed = num_failed_tasks,
-            .num_running = int(jobs.size()),
-            .num_total = int(tasks.size()),
+            .exit_code = state.first_nonzero_exit_code,
+            .num_finished = int(state.next_task_index - state.jobs.size()),
+            .num_failed = state.num_failed_tasks,
+            .num_running = int(state.jobs.size()),
+            .num_total = int(state.tasks.size()),
         };
     }
 
@@ -40,9 +40,9 @@ namespace em
 
         while (true)
         {
-            for (std::size_t i = 0; i < jobs.size();)
+            for (std::size_t i = 0; i < state.jobs.size();)
             {
-                Job &job = jobs[i];
+                Job &job = state.jobs[i];
                 if (!job.process.CheckIfFinished())
                 {
                     // This job isn't finished yet, continue.
@@ -55,12 +55,12 @@ namespace em
                 // Update state on job failure.
                 if (job.process.ExitCode())
                 {
-                    num_failed_tasks++;
-                    if (!first_nonzero_exit_code)
-                        first_nonzero_exit_code = job.process.ExitCode();
+                    state.num_failed_tasks++;
+                    if (!state.first_nonzero_exit_code)
+                        state.first_nonzero_exit_code = job.process.ExitCode();
                 }
 
-                bool stop_queue = params.stop_on_failure && job.process.ExitCode();
+                bool stop_queue = state.params.stop_on_failure && job.process.ExitCode();
 
                 // Run the callback:
 
@@ -71,22 +71,22 @@ namespace em
                     this_status.num_finished++;
                     if (stop_queue)
                         this_status.num_running = 0;
-                    else if (next_task_index == tasks.size())
+                    else if (state.next_task_index == state.tasks.size())
                         this_status.num_running--;
                 }
-                params.status_callback(job, this_status);
+                state.params.status_callback(job, this_status);
 
                 // Stop all jobs on failure, if enabled. But only after the callback, for nicer numbers.
-                if (params.stop_on_failure && job.process.ExitCode())
+                if (state.params.stop_on_failure && job.process.ExitCode())
                 {
                     Kill(false); // I guess false?
                     break;
                 }
 
                 // Try to start a new job.
-                if (next_task_index < tasks.size())
+                if (state.next_task_index < state.tasks.size())
                 {
-                    job = StartJob(std::move(tasks[next_task_index++]));
+                    job = StartJob(std::move(state.tasks[state.next_task_index++]));
                     i++;
                     continue;
                 }
@@ -95,18 +95,18 @@ namespace em
                     // If no more tasks, remove the job entirely.
 
                     // Swap with the last job.
-                    if (i + 1 != jobs.size())
-                        std::swap(job, jobs.back());
+                    if (i + 1 != state.jobs.size())
+                        std::swap(job, state.jobs.back());
 
                     // Pop the last job.
-                    jobs.pop_back();
+                    state.jobs.pop_back();
                 }
             }
 
             // Stop or try again.
             if (wait)
             {
-                if (jobs.empty())
+                if (state.jobs.empty())
                     break;
 
                 SDL_Delay(1);
@@ -117,21 +117,30 @@ namespace em
     }
 
     ProcessQueue::ProcessQueue(std::vector<Task> new_tasks, Params new_params)
-        : tasks(std::move(new_tasks)), params(std::move(new_params))
     {
+        state.tasks = std::move(new_tasks);
+        state.params = std::move(new_params);
+
         // Adjust the params:
 
         // Default the number of jobs to the number of CPU cores, and in any case cap it to the number of tasks.
-        if (params.num_jobs == 0)
-            params.num_jobs = Process::NumCpuCores();
-        if (std::size_t(params.num_jobs) > tasks.size())
-            params.num_jobs = int(tasks.size());
+        if (state.params.num_jobs == 0)
+            state.params.num_jobs = Process::NumCpuCores();
+        if (std::size_t(state.params.num_jobs) > state.tasks.size())
+            state.params.num_jobs = int(state.tasks.size());
 
         // Default the status callback to printing to `stderr`.
-        if (!params.status_callback)
+        if (!state.params.status_callback)
         {
-            params.status_callback = [stop_on_failure = params.stop_on_failure](const Job &job, const Status &status)
+            state.params.status_callback = [first = true, stop_on_failure = state.params.stop_on_failure](const Job &job, const Status &status) mutable
             {
+                // Enable the console on the first message.
+                if (first)
+                {
+                    first = false;
+                    Terminal::DefaultToConsole(stderr);
+                }
+
                 // Header.
                 if (job.process.ExitCode() == 0)
                     fmt::print(stderr, "[Done] {}\n", job.name.c_str());
@@ -164,7 +173,7 @@ namespace em
                 }
                 else if (status.exit_code == 0 && status.num_finished == status.num_total) // The second condition seems redundant, but just in case.
                 {
-                    fmt::print(stderr, "-- All {} job{} done --", status.num_total, status.num_total != 1 ? "s" : "");
+                    fmt::print(stderr, "-- All {} job{} done --\n", status.num_total, status.num_total != 1 ? "s" : "");
                 }
                 else
                 {
@@ -181,23 +190,33 @@ namespace em
         }
 
         // Start the first jobs.
-        jobs.reserve(std::size_t(params.num_jobs));
-        for (std::size_t i = 0; i < std::size_t(params.num_jobs); i++)
-            jobs.push_back(StartJob(std::move(tasks[i])));
-        next_task_index = std::size_t(params.num_jobs);
+        state.jobs.reserve(std::size_t(state.params.num_jobs));
+        for (std::size_t i = 0; i < std::size_t(state.params.num_jobs); i++)
+            state.jobs.push_back(StartJob(std::move(state.tasks[i])));
+        state.next_task_index = std::size_t(state.params.num_jobs);
     }
 
-    // Kills all running processes, if any. Will not start any new ones after this.
+    ProcessQueue::ProcessQueue(ProcessQueue &&other) noexcept
+        : state(std::move(other.state))
+    {
+        other.state = {};
+    }
+    ProcessQueue &ProcessQueue::operator=(ProcessQueue other) noexcept
+    {
+        std::swap(state, other.state);
+        return *this;
+    }
+
     void ProcessQueue::Kill(bool force)
     {
-        for (Job &jobs : jobs)
+        for (Job &jobs : state.jobs)
         {
             jobs.process.Kill(force);
             jobs.process.Detach();
         }
-        jobs = decltype(jobs){};
+        state.jobs = decltype(state.jobs){};
 
-        if (!first_nonzero_exit_code)
-            first_nonzero_exit_code = -255; // Just some exit code. This corresponds to "unknown reason" as reported by `SDL_WaitProcess()`.
+        if (!state.first_nonzero_exit_code)
+            state.first_nonzero_exit_code = -255; // Just some exit code. This corresponds to "unknown reason" as reported by `SDL_WaitProcess()`.
     }
 }

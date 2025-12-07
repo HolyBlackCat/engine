@@ -1,4 +1,7 @@
+#include "command_line/parser_refl.h"
+#include "command_line/parser.h"
 #include "em/refl/macros/structs.h"
+#include "em/refl/static_virtual.h"
 #include "gpu/buffer.h"
 #include "gpu/command_buffer.h"
 #include "gpu/copy_pass.h"
@@ -8,12 +11,14 @@
 #include "gpu/render_pass.h"
 #include "gpu/shader.h"
 #include "gpu/transfer_buffer.h"
+#include "graphics/shader_manager_refl.h"
+#include "graphics/shader_manager.h"
+#include "mainloop/game_state.h"
 #include "mainloop/main.h"
 #include "mainloop/reflected_app.h"
 #include "sdl/sdl.h"
 #include "sdl/window.h"
-#include "utils/command_line_parser_refl.h"
-#include "utils/command_line_parser.h"
+#include "strings/trim.h"
 #include "utils/filesystem.h"
 
 #include <iostream>
@@ -33,13 +38,45 @@ struct GameApp : App::Module
             // .url = "",
         })
         (Gpu::Device)(gpu, Gpu::Device::Params{})
+        (Graphics::ShaderManager)(shader_manager, gpu)
         (Window)(window, Window::Params{
             .gpu_device = &gpu,
         })
     )
 
-    Gpu::Shader sh_v = Gpu::Shader(gpu, "main vert", Gpu::Shader::Stage::vertex, Filesystem::LoadedFile(fmt::format("{}assets/shaders/main.vert.spv", Filesystem::GetResourceDir())));
-    Gpu::Shader sh_f = Gpu::Shader(gpu, "main frag", Gpu::Shader::Stage::fragment, Filesystem::LoadedFile(fmt::format("{}assets/shaders/main.frag.spv", Filesystem::GetResourceDir())));
+    Graphics::Shader sh_v = Graphics::Shader("main vert", Gpu::Shader::Stage::vertex, (std::string)R"(
+        #version 460
+
+        layout(location = 0) in vec3 a_pos;
+        layout(location = 1) in vec4 a_color;
+
+        layout(location = 0) out vec4 v_color;
+
+        void main()
+        {
+            v_color = a_color;
+            gl_Position = vec4(a_pos, 1);
+        }
+    )"_compact);
+
+    Graphics::Shader sh_f = Graphics::Shader("main frag", em::Gpu::Shader::Stage::fragment, (std::string)R"(
+        #version 460
+
+        layout(location = 0) in vec4 v_color;
+
+        layout(location = 0) out vec4 o_color;
+
+        void main()
+        {
+            o_color = v_color;
+        }
+    )"_compact);
+
+    void NeededShaders(Graphics::BasicShaderManager &shaders)
+    {
+        shaders.AddShader(sh_v);
+        shaders.AddShader(sh_f);
+    }
 
     EM_STRUCT(Vertex)
     (
@@ -47,35 +84,46 @@ struct GameApp : App::Module
         (fvec3)(color)
     )
 
-    Gpu::Pipeline pipeline = Gpu::Pipeline(gpu, Gpu::Pipeline::Params{
-        .shaders = {
-            .vert = &sh_v,
-            .frag = &sh_f,
-        },
-        .vertex_buffers = {
-            {
-                Gpu::ReflectedVertexLayout<Vertex>{},
-            }
-        },
-        .targets = {
-            .color = {
-                Gpu::Pipeline::ColorTarget{
-                    .texture_format = window.GetSwapchainTextureFormat()
-                }
-            },
-        },
-    });
+    Gpu::Pipeline pipeline;
 
     Gpu::Buffer buffer = Gpu::Buffer(gpu, sizeof(fvec3) * 6);
 
     GameApp(int argc, char **argv)
     {
-        { // Handle command line flags.
-            CommandLine::Parser args_parser;
-            args_parser.AddDefaultHelpFlag();
-            CommandLine::ReflectFlags(args_parser, *this);
-            args_parser.Parse(argc, argv);
+        { // Collect needed shaders, before parsing the flags.
+            Graphics::ShaderManagerRefl::AddNeededShaders(shader_manager, *this);
+            for (const auto &in : Refl::StaticVirtual::GetMap<App::BasicState::Interface>())
+                in.second->NeededShadersStatic(shader_manager);
         }
+
+        { // Parse the command line args.
+            CommandLine::Parser parser;
+            parser.AddDefaultHelpFlag();
+            // Here we allow non-static callbacks in `this`, and only static callbacks in the game states.
+            CommandLine::Refl::AddProvidedCommandLineFlags(parser, *this);
+            for (const auto &in : Refl::StaticVirtual::GetMap<App::BasicState::Interface>())
+                in.second->AddProvidedCommandLineFlagsStatic(parser);
+            parser.Parse(argc, argv);
+        }
+
+        pipeline = Gpu::Pipeline(gpu, Gpu::Pipeline::Params{
+            .shaders = {
+                .vert = &sh_v.shader,
+                .frag = &sh_f.shader,
+            },
+            .vertex_buffers = {
+                {
+                    Gpu::ReflectedVertexLayout<Vertex>{},
+                }
+            },
+            .targets = {
+                .color = {
+                    Gpu::Pipeline::ColorTarget{
+                        .texture_format = window.GetSwapchainTextureFormat()
+                    }
+                },
+            },
+        });
 
         Vertex verts[3] = {
             {

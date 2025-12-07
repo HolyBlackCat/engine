@@ -1,4 +1,4 @@
-#include "command_line_parser.h"
+#include "parser.h"
 
 #include "utils/terminal.h"
 
@@ -11,9 +11,20 @@ namespace em::CommandLine
         // This is a non-member to ensure that we're being fair by only using the public API.
         struct HelpFlag : Parser::BasicFlag
         {
+            bool flag_specified = false;
+
             void ConsumeArgs(const Parser &parser, std::span<const char *const> args) override
             {
+                (void)parser;
                 (void)args;
+
+                flag_specified = true;
+            }
+
+            void OnPostParse(const Parser &parser) override
+            {
+                if (!flag_specified)
+                    return;
 
                 const auto &flag_descs = parser.GetFlagDescriptions();
 
@@ -57,14 +68,23 @@ namespace em::CommandLine
         AddFlagLow<HelpFlag>("-h,--help", "Show this page.");
     }
 
-    void Parser::Parse(int argc, const char *const *argv)
+    void Parser::Parse(const char *const *argv)
     {
-        (void)argc; // This is unused, we rely on the null terminator in `argv`.
         if (!*argv)
             return; // Zero arguments, not even the program name. Nothing to do.
 
         // Skip the program name.
         argv++;
+
+        // We use this to check for duplicate flags, for flags don't allow it.
+        // We can safely use pointers here, because flags have stable addresses in their `std::shared_ptr`s.
+        phmap::flat_hash_set<const BasicFlag *> once_flags;
+
+        auto CheckForRepeatedFlag = [&](const BasicFlag &flag, std::string_view name)
+        {
+            if (!flag.AllowRepeat() && !once_flags.insert(&flag).second)
+                throw std::runtime_error(fmt::format("This flag can't be used more than once: `-{}{}`.", name.size() == 1 ? "" : "-", name));
+        };
 
         while (*argv)
         {
@@ -93,6 +113,9 @@ namespace em::CommandLine
                     // Complain if we got `--` with a single letter. Those should only be usable with a single `-`.
                     if (iter->first.size() == 1)
                         throw std::runtime_error(fmt::format("No such flag: `--{}`, did you mean `-{}`.", flag_view, flag_view));
+
+                    // Check for repeated flag.
+                    CheckForRepeatedFlag(*iter->second, flag_view);
 
                     const int num_args = iter->second->NumArgs();
                     if (first_arg)
@@ -144,6 +167,9 @@ namespace em::CommandLine
                         if (iter == name_to_flag.end())
                             throw std::runtime_error(fmt::format("No such flag: `-{}`.", *this_flag));
 
+                        // Check for repeated flag.
+                        CheckForRepeatedFlag(*iter->second, std::string_view(this_flag, 1));
+
                         const int num_args = iter->second->NumArgs();
 
                         // No arguments?
@@ -188,5 +214,21 @@ namespace em::CommandLine
 
             argv++;
         }
+
+        // Run post-parse callbacks.
+        for (const auto &desc : flag_descriptions)
+            desc.flag->OnPostParse(*this);
+    }
+
+    void Parser::Parse(int argc, const char *const *argv)
+    {
+        // Just validate `argc` if it's specified.
+        int expected_argc = 0;
+        for (const char *const *argv_copy = argv; *argv_copy; argv_copy++)
+            expected_argc++;
+        if (expected_argc != argc)
+            throw std::logic_error("Bad usage of the command line parser: The `argc` value doesn't match the actual `argv` length.");
+
+        Parse(argv);
     }
 }

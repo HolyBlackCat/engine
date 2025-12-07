@@ -5,7 +5,7 @@
 #include <optional>
 #include <string>
 #include <typeindex>
-#include <typeinfo>
+#include <typeinfo> // IWYU pragma: keep, we use `typeid()` in this file.
 #include <vector>
 
 // The typical usecase of this file is `em::DefaultExceptionAnalyzer().Analyze(std::current_exception()).CombinedMessage()`.

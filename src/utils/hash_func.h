@@ -7,10 +7,8 @@
 
 namespace em
 {
-    using hash_t = std::uint32_t;
-
     // A constexpr implementation of MurmurHash3, adapted from `https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp`.
-    [[nodiscard]] constexpr hash_t Hash(const_byte_view bytes, hash_t seed = 0)
+    [[nodiscard]] constexpr std::uint32_t Hash32(const_byte_view bytes, std::uint32_t seed = 0)
     {
         const std::size_t nblocks = bytes.size() / 4;
 

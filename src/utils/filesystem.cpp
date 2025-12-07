@@ -1,4 +1,5 @@
 #include "filesystem.h"
+#include "errors/exception_analyzer.h"
 
 #include <fmt/format.h>
 #include <SDL3/SDL_filesystem.h>
@@ -143,12 +144,120 @@ namespace em::Filesystem
     }
     #endif
 
-    LoadedFile::LoadedFile(zstring_view file_path)
+    LoadedFile::LoadedFile(zstring_view file_path, bool *success)
     {
+        if (success)
+            *success = true;
+
         std::size_t size = 0;
         auto new_ptr = reinterpret_cast<const unsigned char *>(SDL_LoadFile(file_path.c_str(), &size));
         if (!new_ptr)
-            throw std::runtime_error(fmt::format("Unable to load file contents: `{}`.", file_path));
+        {
+            if (success)
+            {
+                *success = false;
+                return;
+            }
+            else
+            {
+                throw std::runtime_error(fmt::format("Unable to load file contents: `{}`.", file_path));
+            }
+        }
+
         zblob::operator=(zblob(zblob::OwningSdl{}, new_ptr, size));
+    }
+
+    bool VisitDirectory(zstring_view path, std::function<bool(zstring_view filename)> func)
+    {
+        bool stopped_early = false;
+        auto func_wrapper = [&](zstring_view filename) -> bool
+        {
+            if (func(filename))
+            {
+                stopped_early = true;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        };
+
+        bool ok = SDL_EnumerateDirectory(
+            path.c_str(),
+            [](void *userdata, const char *dirname, const char *fname) -> SDL_EnumerationResult
+            {
+                (void)dirname; // This is just a copy of the input directory path, I believe.
+
+                try
+                {
+                    return (*reinterpret_cast<decltype(func_wrapper) *>(userdata))(fname) ? SDL_ENUM_SUCCESS : SDL_ENUM_CONTINUE;
+                }
+                catch (...)
+                {
+                    SDL_SetError("User callback threw an exception: %s", DefaultExceptionAnalyzer().Analyze(std::current_exception()).CombinedMessage().c_str());
+                    return SDL_ENUM_FAILURE;
+                }
+            },
+            &func_wrapper
+        );
+
+        if (!ok)
+            throw std::runtime_error(fmt::format("Failed to iterate over directory `{}`, the error was: `{}`.", path, SDL_GetError()));
+
+        return stopped_early;
+    }
+
+
+    bool FileExists(zstring_view path)
+    {
+        // Can't distinguish "file doesn't exist" from other errors.
+        return SDL_GetPathInfo(path.c_str(), nullptr);
+    }
+
+    std::optional<FileInfo> GetFileInfo(zstring_view path)
+    {
+        std::optional<FileInfo> ret;
+        SDL_PathInfo info;
+
+        bool ok = SDL_GetPathInfo(path.c_str(), &info);
+        if (!ok)
+            return ret; // Can't distinguish "file doesn't exist" from other errors.
+
+        FileInfo &ret_info = ret.emplace();
+
+        switch (info.type)
+        {
+          case SDL_PATHTYPE_NONE:
+            assert(false); // This should be impossible.
+            ret.reset();
+            return ret;
+          case SDL_PATHTYPE_FILE:
+            ret_info.kind = FileKind::file;
+            break;
+          case SDL_PATHTYPE_DIRECTORY:
+            ret_info.kind = FileKind::directory;
+            break;
+          case SDL_PATHTYPE_OTHER:
+            ret_info.kind = FileKind::other;
+            break;
+        }
+
+        ret_info.size = info.size;
+        ret_info.create_time = info.create_time;
+        ret_info.modify_time = info.modify_time;
+        ret_info.access_time = info.access_time;
+
+        return ret;
+    }
+
+    bool DeleteOne(zstring_view path)
+    {
+        return SDL_RemovePath(path.c_str());
+    }
+
+    bool CreateDirectories(zstring_view path)
+    {
+        return SDL_CreateDirectory(path.c_str());
     }
 }

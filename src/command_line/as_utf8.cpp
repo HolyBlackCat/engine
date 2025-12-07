@@ -1,4 +1,4 @@
-#include "command_line_as_utf8.h"
+#include "as_utf8.h"
 
 #ifdef _WIN32
 #include <cstddef>
@@ -20,7 +20,7 @@ namespace em::CommandLine
         // Windows encodes `argv` in a narrow codepage by default, which can make us lose some characters.
         // Because of that, we need to independently obtain the arguments in UTF-16, and then convert them to UTF-8.
         // This is inspired by: https://github.com/libsdl-org/SDL/blob/main/src/main/windows/SDL_sysmain_runapp.c
-        // And by my own code frmo another project: https://github.com/MeshInspector/mrbind/blob/2077ba0762d5a84cf1ef34800ca47df8438d95f6/src/generators/common/command_line_args_as_utf8.cpp
+        // And by my own code from another project: https://github.com/MeshInspector/mrbind/blob/2077ba0762d5a84cf1ef34800ca47df8438d95f6/src/generators/common/command_line_args_as_utf8.cpp
         (void)new_argc;
         (void)new_argv;
 

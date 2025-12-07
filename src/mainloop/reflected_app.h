@@ -26,8 +26,8 @@ namespace em::App
 
         Action Tick() override
         {
-            // `exit_success` is non-zero (zero is `cont`). This causes us to exit if there are no overriders,
-            //   to avoid an infinite loop, which apparently is only stoppable by a SIGKILL.
+            // Note exiting by default if there's nothing to tick.
+            // This is important to avoid an infinite loop, which apparently is only stoppable by a SIGKILL.
             Action ret = Action::exit_success;
             Refl::ForEachElemOfTypeCvref<Module, Meta::LoopAnyOf<>>(underlying, [&](Module &m){return bool(ret = m.Tick());});
             return ret;

@@ -1,3 +1,3 @@
 MODE := release
 APP := imp-re
-ARGS :=
+ARGS := -S assets/assets/shaders

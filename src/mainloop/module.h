@@ -17,6 +17,7 @@ namespace em::App
         virtual ~Module() = default;
 
         virtual Action Tick() {return Action::cont;}
+
         virtual Action HandleEvent(SDL_Event &e) {(void)e; return Action::cont;}
     };
 }

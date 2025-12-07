@@ -1,4 +1,4 @@
-#include "utils/command_line_parser.h"
+#include "command_line/parser.h"
 
 #include "em/minitest.hpp"
 
@@ -9,11 +9,11 @@ using namespace em;
 EM_TEST( wrong_usage )
 {
     CommandLine::Parser p;
-    p.AddFlag("-a", "desc", [&]{});
-    EM_MUST_THROW( p.AddFlag("a", "desc", [&]{}) )(std::logic_error("Bad usage of the command line parser: Each command line flag must start with a `-` or `--`, but got `a`."));
-    EM_MUST_THROW( p.AddFlag("-a", "desc", [&]{}) )(std::logic_error("Bad usage of the command line parser: Duplicate command line flag: `a`."));
-    EM_MUST_THROW( p.AddFlag("--a", "desc", [&]{}) )(std::logic_error("Bad usage of the command line parser: A flag starting with `--` must have a multi-letter name, but got `--a`."));
-    EM_MUST_THROW( p.AddFlag("-aa", "desc", [&]{}) )(std::logic_error("Bad usage of the command line parser: A flag starting with `-` must have exactly one letter in the name, but got `-aa`."));
+    p.AddFlag("-a", {}, "desc", [&]{});
+    EM_MUST_THROW( p.AddFlag("a", {}, "desc", [&]{}) )(std::logic_error("Bad usage of the command line parser: Each command line flag must start with a `-` or `--`, but got `a`."));
+    EM_MUST_THROW( p.AddFlag("-a", {}, "desc", [&]{}) )(std::logic_error("Bad usage of the command line parser: Duplicate command line flag: `a`."));
+    EM_MUST_THROW( p.AddFlag("--a", {}, "desc", [&]{}) )(std::logic_error("Bad usage of the command line parser: A flag starting with `--` must have a multi-letter name, but got `--a`."));
+    EM_MUST_THROW( p.AddFlag("-aa", {}, "desc", [&]{}) )(std::logic_error("Bad usage of the command line parser: A flag starting with `-` must have exactly one letter in the name, but got `-aa`."));
 }
 
 EM_TEST( parsing )
@@ -21,9 +21,9 @@ EM_TEST( parsing )
     std::string log;
 
     CommandLine::Parser p;
-    p.AddFlag("--alpha,-A", "alpha desc", [&](){log += "{}\n";});
-    p.AddFlag<std::string>("--beta,-B", "beta_arg1", "beta desc", [&](std::string a){log += "[" + a + "]\n";});
-    p.AddFlag<std::string, std::string>("--gamma,-G", "gamma_arg1", "gamma_arg2", "gamma desc", [&](std::string a, std::string b){log += "[" + a + "|" + b + "]\n";});
+    p.AddFlag("--alpha,-A", {}, "alpha desc", [&](){log += "{}\n";});
+    p.AddFlag<std::string>("--beta,-B", {}, "beta_arg1", "beta desc", [&](std::string a){log += "[" + a + "]\n";});
+    p.AddFlag<std::string, std::string>("--gamma,-G", {}, "gamma_arg1", "gamma_arg2", "gamma desc", [&](std::string a, std::string b){log += "[" + a + "|" + b + "]\n";});
 
     EM_MUST_THROW( p.Parse(std::array{"./app", "a", (const char *)nullptr}.data()) )(std::runtime_error("Positional arguments are not allowed, but got `a`."));
     EM_MUST_THROW( p.Parse(std::array{"./app", "--a", (const char *)nullptr}.data()) )(std::runtime_error("No such flag: `--a`."));

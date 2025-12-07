@@ -57,6 +57,18 @@ namespace em::Gpu
             throw std::runtime_error(fmt::format("Unable to compile SPIRV shader: {}", SDL_GetError()));
     }
 
+    Shader::Shader(Shader &&other) noexcept
+        : state(std::move(other.state))
+    {
+        other.state = {};
+    }
+
+    Shader &Shader::operator=(Shader other) noexcept
+    {
+        std::swap(state, other.state);
+        return *this;
+    }
+
     Shader::~Shader()
     {
         if (state.shader)

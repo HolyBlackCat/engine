@@ -74,19 +74,23 @@ namespace em
         };
 
       private:
-        // All of our tasks, including the finished ones, in the order they will be executed.
-        std::vector<Task> tasks;
+        struct State
+        {
+            // All of our tasks, including the finished ones, in the order they will be executed.
+            std::vector<Task> tasks;
 
-        Params params;
+            Params params;
 
-        // The next task we'll run.
-        std::size_t next_task_index = 0;
+            // The next task we'll run.
+            std::size_t next_task_index = 0;
 
-        int first_nonzero_exit_code = 0;
+            int first_nonzero_exit_code = 0;
 
-        int num_failed_tasks = 0;
+            int num_failed_tasks = 0;
 
-        std::vector<Job> jobs;
+            std::vector<Job> jobs;
+        };
+        State state;
 
         [[nodiscard]] Job StartJob(Task &&task);
         [[nodiscard]] Status MakeStatus() const;
@@ -98,6 +102,9 @@ namespace em
         ProcessQueue() {}
 
         ProcessQueue(std::vector<Task> new_tasks, Params new_params = DefaultConstructParams());
+
+        ProcessQueue(ProcessQueue &&other) noexcept;
+        ProcessQueue &operator=(ProcessQueue other) noexcept;
 
         // Kills all running processes, if any. Will not start any new ones after this.
         void Kill(bool force);
@@ -113,6 +120,6 @@ namespace em
         [[nodiscard]] Status LastKnownStatus() const {return MakeStatus();}
 
         // Returns the current jobs.
-        [[nodiscard]] std::span<const Job> Jobs() const {return jobs;}
+        [[nodiscard]] std::span<const Job> Jobs() const {return state.jobs;}
     };
 }

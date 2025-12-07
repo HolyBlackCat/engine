@@ -1,6 +1,7 @@
 #pragma once
 
 #include "em/macros/utils/forward.h"
+#include "em/macros/utils/flag_enum.h"
 #include "em/meta/common.h"
 #include "em/meta/const_string.h"
 #include "em/zstring_view.h"
@@ -34,6 +35,13 @@ namespace em::CommandLine
     template <ArgumentType T, Meta::ConstString Name>
     struct Arg {};
 
+    // Those are used by `Parser::AddFlag()`.
+    enum class Flags
+    {
+        allow_repeat = 1 << 0,
+    };
+    EM_FLAG_ENUM(Flags)
+
     class Parser
     {
       public:
@@ -48,6 +56,12 @@ namespace em::CommandLine
 
             // Here you'll get the amount of arguments returned by `NumArgs()`.
             virtual void ConsumeArgs(const Parser &parser, std::span<const char *const> args) = 0;
+
+            // If this is false, repeating this flag will automatically error.
+            virtual bool AllowRepeat() const {return false;}
+
+            // This is called once for every flag at the end of parsing, even if this flag wasn't passed.
+            virtual void OnPostParse(const Parser &parser) {(void)parser;}
         };
 
         struct FlagDesc
@@ -115,23 +129,28 @@ namespace em::CommandLine
         //   The order of flags in `flag_names` is propagated to `--help` but otherwise doesn't matter.
         // `arg_names...` has the same length as `ArgTypes...`, those are the names of the arguments to be displayed in `--help`.
         // `help_text` is the description of this flag to be displayed in `--help`.
-        // `func()` is the callback called when this flag is received.
+        // `func(ArgTypes...)` is the callback called when this flag is received.
+        // `on_post_parse()` is the callback called when we're done parsing arguments. It is always called once per registered flag, even if it wasn't actually passed.
         template <ArgumentType ...ArgTypes>
         Parser &AddFlag(
             std::string flag_names,
+            Flags flags,
             Meta::first_type<std::string, ArgTypes> ...arg_names,
             std::string help_text,
-            std::type_identity_t<std::function<void(const ArgTypes &...)>> func
+            std::type_identity_t<std::function<void(const ArgTypes &...)>> func,
+            std::function<void()> on_post_parse = nullptr
         )
         {
             using ArgNameArray = std::array<std::string, sizeof...(ArgTypes)>;
             struct FlagImpl : BasicFlag
             {
+                Flags flags;
                 ArgNameArray arg_names;
                 std::function<void(const ArgTypes &...)> func;
+                std::function<void()> on_post_parse;
 
-                FlagImpl(ArgNameArray arg_names, std::function<void(const ArgTypes &...)> func)
-                    : arg_names(std::move(arg_names)), func(std::move(func))
+                FlagImpl(Flags flags, ArgNameArray arg_names, std::function<void(const ArgTypes &...)> func, std::function<void()> on_post_parse)
+                    : flags(flags), arg_names(std::move(arg_names)), func(std::move(func)), on_post_parse(std::move(on_post_parse))
                 {}
 
                 int NumArgs() const override {return sizeof...(ArgTypes);}
@@ -150,11 +169,25 @@ namespace em::CommandLine
                     // Using a tuple to force evaluation order. Using `ArgTypes...` just in case, to avoid CTAD jank.
                     std::apply(func, std::tuple<ArgTypes...>{ArgTypes(args[i++])...});
                 }
+
+                bool AllowRepeat() const override
+                {
+                    return bool(flags & Flags::allow_repeat);
+                }
+
+                void OnPostParse(const Parser &parser) override
+                {
+                    (void)parser;
+                    if (on_post_parse)
+                        on_post_parse();
+                }
             };
-            return AddFlagLow<FlagImpl>(std::move(flag_names), std::move(help_text), ArgNameArray{std::move(arg_names)...}, std::move(func));
+            return AddFlagLow<FlagImpl>(std::move(flag_names), std::move(help_text), flags, ArgNameArray{std::move(arg_names)...}, std::move(func), std::move(on_post_parse));
         }
 
         // This throws on failure. `argv` is expected to be terminated by a null pointer.
+        void Parse(const char *const *argv);
+        // If `argc` is specified, it's validated against `argv` and that's all.
         void Parse(int argc, const char *const *argv);
 
         // Some getters, you usually don't need those.
