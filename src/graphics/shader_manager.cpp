@@ -102,7 +102,7 @@ namespace em::Graphics
             std::string filename = fmt::format("{}/{}-{:08x}.{}.spv", dir, fixed_name, hash, stage_name);
             shader_filenames.insert(filename);
 
-            bool file_was_loaded = false;
+            bool file_was_loaded = true;
             // If `compile_when_finalized == false`, this just throws.
             Filesystem::LoadedFile file(filename, compile_when_finalized ? &file_was_loaded : nullptr);
 

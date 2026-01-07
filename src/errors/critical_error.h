@@ -17,7 +17,6 @@ namespace em
     class CriticalErrorHandler
     {
       public:
-        // This always receives a null-terminated string.
         using Func = std::function<void(zstring_view)>;
 
       private:
@@ -39,7 +38,7 @@ namespace em
         CriticalErrorHandler(std::nullptr_t) {}
 
         // The `func` is never going to be moved around, you should store all your state in it.
-        // `func` is `(em::zstring_view message) -> void`. The message is always null-terminated.
+        // `func` is `(em::zstring_view message) -> void`.
         // By default the handler is prepended to other handlers. Pass `after_other_handlers == true` to add it after the existing ones instead.
         CriticalErrorHandler(Func func, bool after_other_handlers = false);
         CriticalErrorHandler(CriticalErrorHandler &&other) noexcept;

@@ -20,7 +20,6 @@ namespace em
         return ret;
     }();
 
-    // `message` MUST be null-terminated here.
     // This would be `static`, but we must friend it in `CriticalErrorHandler` and you can't friend static functions.
     [[noreturn]] void CriticalError(zstring_view message)
     {
