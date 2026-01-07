@@ -4,8 +4,6 @@
 
 using namespace em;
 
-#include <iostream>
-
 EM_TEST( wrong_usage )
 {
     CommandLine::Parser p;
@@ -21,9 +19,9 @@ EM_TEST( parsing )
     std::string log;
 
     CommandLine::Parser p;
-    p.AddFlag("--alpha,-A", {}, "alpha desc", [&](){log += "{}\n";});
-    p.AddFlag<std::string>("--beta,-B", {}, "beta_arg1", "beta desc", [&](std::string a){log += "[" + a + "]\n";});
-    p.AddFlag<std::string, std::string>("--gamma,-G", {}, "gamma_arg1", "gamma_arg2", "gamma desc", [&](std::string a, std::string b){log += "[" + a + "|" + b + "]\n";});
+    p.AddFlag("--alpha,-A", em::CommandLine::Flags::allow_repeat, "alpha desc", [&](){log += "{}\n";});
+    p.AddFlag<std::string>("--beta,-B", em::CommandLine::Flags::allow_repeat, "beta_arg1", "beta desc", [&](std::string a){log += "[" + a + "]\n";});
+    p.AddFlag<std::string, std::string>("--gamma,-G", em::CommandLine::Flags::allow_repeat, "gamma_arg1", "gamma_arg2", "gamma desc", [&](std::string a, std::string b){log += "[" + a + "|" + b + "]\n";});
 
     EM_MUST_THROW( p.Parse(std::array{"./app", "a", (const char *)nullptr}.data()) )(std::runtime_error("Positional arguments are not allowed, but got `a`."));
     EM_MUST_THROW( p.Parse(std::array{"./app", "--a", (const char *)nullptr}.data()) )(std::runtime_error("No such flag: `--a`."));
@@ -43,35 +41,48 @@ EM_TEST( parsing )
     log.clear();
 
     // Some valid usages.
-    p.Parse(std::array{"./app", "--alpha", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "{}\n");
-    p.Parse(std::array{"./app", "--alpha", "--alpha", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "{}\n{}\n");
-    p.Parse(std::array{"./app", "-A", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "{}\n");
-    p.Parse(std::array{"./app", "-AA", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "{}\n{}\n");
-    p.Parse(std::array{"./app", "-A", "-A", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "{}\n{}\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "--alpha", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "{}\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "--alpha", "--alpha", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "{}\n{}\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "-A", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "{}\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "-AA", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "{}\n{}\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "-A", "-A", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "{}\n{}\n");
 
-    p.Parse(std::array{"./app", "--beta", "-x", "--beta", "-y", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "[-x]\n[-y]\n");
-    p.Parse(std::array{"./app", "--beta", "-x", "--beta", "-y", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "[-x]\n[-y]\n");
-    p.Parse(std::array{"./app", "--beta=-x", "--beta=-y", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "[-x]\n[-y]\n");
-    p.Parse(std::array{"./app", "--beta=", "--beta=", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "[]\n[]\n");
-    p.Parse(std::array{"./app", "--gamma", "-x", "-y", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "[-x|-y]\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "--beta", "-x", "--beta", "-y", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "[-x]\n[-y]\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "--beta", "-x", "--beta", "-y", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "[-x]\n[-y]\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "--beta=-x", "--beta=-y", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "[-x]\n[-y]\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "--beta=", "--beta=", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "[]\n[]\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "--gamma", "-x", "-y", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "[-x|-y]\n");
 
-    p.Parse(std::array{"./app", "-BA", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "[A]\n");
-    p.Parse(std::array{"./app", "-B", "A", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "[A]\n");
-    p.Parse(std::array{"./app", "-G", "A", "B", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "[A|B]\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "-BA", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "[A]\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "-B", "A", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "[A]\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "-G", "A", "B", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "[A|B]\n");
 
-    p.Parse(std::array{"./app", "-AABAA", (const char *)nullptr}.data());
-    EM_CHECK(std::exchange(log, {}) == "{}\n{}\n[AA]\n");
+    EM_TRY_SOFT( p.Parse(std::array{"./app", "-AABAA", (const char *)nullptr}.data()) );
+    EM_CHECK_SOFT(std::exchange(log, {}) == "{}\n{}\n[AA]\n");
+}
+
+
+EM_TEST( errors_on_repeat )
+{
+    CommandLine::Parser p;
+    p.AddFlag("--alpha,-A", {}, "alpha desc", [&](){;});
+
+    EM_MUST_THROW( p.Parse(std::array{"./app", "--alpha", "--alpha", (const char *)nullptr}.data()) )( std::runtime_error("This flag can't be used more than once: `--alpha`.") );
+    EM_MUST_THROW( p.Parse(std::array{"./app", "-A", "--alpha", (const char *)nullptr}.data()) )( std::runtime_error("This flag can't be used more than once: `--alpha`.") );
+    EM_MUST_THROW( p.Parse(std::array{"./app", "--alpha", "-A", (const char *)nullptr}.data()) )( std::runtime_error("This flag can't be used more than once: `-A`.") );
+    EM_MUST_THROW( p.Parse(std::array{"./app", "-A", "-A", (const char *)nullptr}.data()) )( std::runtime_error("This flag can't be used more than once: `-A`.") );
+    EM_MUST_THROW( p.Parse(std::array{"./app", "-A", "-A", (const char *)nullptr}.data()) )( std::runtime_error("This flag can't be used more than once: `-A`.") );
 }
