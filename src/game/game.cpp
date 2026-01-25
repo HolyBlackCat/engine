@@ -1,6 +1,7 @@
 #include "command_line/parser_refl.h"
 #include "command_line/parser.h"
 #include "em/refl/macros/structs.h"
+#include "em/refl/recursively_visit_elems_maybe_static.h"
 #include "em/refl/static_virtual.h"
 #include "gpu/buffer.h"
 #include "gpu/command_buffer.h"
@@ -11,7 +12,6 @@
 #include "gpu/render_pass.h"
 #include "gpu/shader.h"
 #include "gpu/transfer_buffer.h"
-#include "graphics/shader_manager_refl.h"
 #include "graphics/shader_manager.h"
 #include "mainloop/game_state.h"
 #include "mainloop/main.h"
@@ -42,41 +42,35 @@ struct GameApp : App::Module
         (Window)(window, Window::Params{
             .gpu_device = &gpu,
         })
+        (Graphics::Shader)(sh_v, Graphics::Shader("main vert", Gpu::Shader::Stage::vertex, (std::string)R"(
+            #version 460
+
+            layout(location = 0) in vec3 a_pos;
+            layout(location = 1) in vec4 a_color;
+
+            layout(location = 0) out vec4 v_color;
+
+            void main()
+            {
+                v_color = a_color;
+                gl_Position = vec4(a_pos, 1);
+            }
+        )"_compact))
+        (Graphics::Shader)(sh_f, Graphics::Shader("main frag", em::Gpu::Shader::Stage::fragment, (std::string)R"(
+            #version 460
+
+            layout(location = 0) in vec4 v_color;
+
+            layout(location = 0) out vec4 o_color;
+
+            void main()
+            {
+                o_color = v_color;
+            }
+        )"_compact))
     )
 
-    Graphics::Shader sh_v = Graphics::Shader("main vert", Gpu::Shader::Stage::vertex, (std::string)R"(
-        #version 460
 
-        layout(location = 0) in vec3 a_pos;
-        layout(location = 1) in vec4 a_color;
-
-        layout(location = 0) out vec4 v_color;
-
-        void main()
-        {
-            v_color = a_color;
-            gl_Position = vec4(a_pos, 1);
-        }
-    )"_compact);
-
-    Graphics::Shader sh_f = Graphics::Shader("main frag", em::Gpu::Shader::Stage::fragment, (std::string)R"(
-        #version 460
-
-        layout(location = 0) in vec4 v_color;
-
-        layout(location = 0) out vec4 o_color;
-
-        void main()
-        {
-            o_color = v_color;
-        }
-    )"_compact);
-
-    void NeededShaders(Graphics::BasicShaderManager &shaders)
-    {
-        shaders.AddShader(sh_v);
-        shaders.AddShader(sh_f);
-    }
 
     EM_STRUCT(Vertex)
     (
@@ -91,9 +85,7 @@ struct GameApp : App::Module
     GameApp(int argc, char **argv)
     {
         { // Collect needed shaders, before parsing the flags.
-            Graphics::ShaderManagerRefl::AddNeededShaders(shader_manager, *this);
-            for (const auto &in : Refl::StaticVirtual::GetMap<App::BasicState::Interface>())
-                in.second->NeededShadersStatic(shader_manager);
+            Refl::RecursivelyVisitMaybeStaticElemsOfTypeCvref<Graphics::Shader &>(*this, [&](Graphics::Shader &sh){shader_manager.AddShader(sh);});
         }
 
         { // Parse the command line args.

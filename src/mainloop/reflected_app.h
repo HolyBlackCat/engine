@@ -1,7 +1,7 @@
 #pragma once
 
 #include "em/macros/utils/forward.h"
-#include "em/refl/for_each_matching_elem.h"
+#include "em/refl/recursively_visit_elems.h"
 #include "mainloop/module.h"
 
 namespace em::App
@@ -29,14 +29,14 @@ namespace em::App
             // Note exiting by default if there's nothing to tick.
             // This is important to avoid an infinite loop, which apparently is only stoppable by a SIGKILL.
             Action ret = Action::exit_success;
-            Refl::ForEachElemOfTypeCvref<Module, Meta::LoopAnyOf<>>(underlying, [&](Module &m){return bool(ret = m.Tick());});
+            Refl::RecursivelyVisitElemsOfTypeCvref<Module, Meta::LoopAnyOf<>>(underlying, [&](Module &m){return bool(ret = m.Tick());});
             return ret;
         }
 
         Action HandleEvent(SDL_Event &e) override
         {
             Action ret = Action::cont;
-            Refl::ForEachElemOfTypeCvref<Module, Meta::LoopAnyOf<>>(underlying, [&](Module &m){return bool(ret = m.HandleEvent(e));});
+            Refl::RecursivelyVisitElemsOfTypeCvref<Module, Meta::LoopAnyOf<>>(underlying, [&](Module &m){return bool(ret = m.HandleEvent(e));});
             return ret;
         }
     };

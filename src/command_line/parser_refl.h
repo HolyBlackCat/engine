@@ -1,7 +1,7 @@
 #pragma once
 
-#include "em/refl/for_each_matching_elem.h"
-#include "em/refl/for_each_matching_type.h"
+#include "em/refl/recursively_visit_elems.h"
+#include "em/refl/recursively_visit_types.h"
 #include "command_line/parser.h"
 
 #include <type_traits>
@@ -33,7 +33,7 @@ namespace em::CommandLine::Refl
     // This version allows the function to either be static or non-static.
     void AddProvidedCommandLineFlags(Parser &parser, auto &object)
     {
-        em::Refl::ForEachElemMatchingPred<ProvidesCommandLineFlagsPred>(object, [&parser](auto &&member) -> void
+        em::Refl::RecursivelyVisitElemsMatchingPred<ProvidesCommandLineFlagsPred>(object, [&parser](auto &&member) -> void
         {
             // Catch non-void return types this way.
             return member.ProvidedCommandLineFlags(parser);
@@ -46,7 +46,7 @@ namespace em::CommandLine::Refl
     template <typename T>
     void AddProvidedCommandLineFlagsStatic(Parser &parser)
     {
-        em::Refl::ForEachTypeMatchingPred<T, ProvidesCommandLineFlagsPred>([&parser]<typename SubT> -> void
+        em::Refl::RecursivelyVisitTypesMatchingPred<T, ProvidesCommandLineFlagsPred>([&parser]<typename SubT> -> void
         {
             // Catch non-void return types this way.
             return std::remove_cvref_t<SubT>::ProvidedCommandLineFlags(parser);
