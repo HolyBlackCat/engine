@@ -19,7 +19,6 @@
 #include "sdl/sdl.h"
 #include "sdl/window.h"
 #include "strings/trim.h"
-#include "utils/filesystem.h"
 
 #include <iostream>
 #include <memory>
@@ -38,7 +37,6 @@ struct GameApp : App::Module
             // .url = "",
         })
         (Gpu::Device)(gpu, Gpu::Device::Params{})
-        (Graphics::ShaderManager)(shader_manager, gpu)
         (Window)(window, Window::Params{
             .gpu_device = &gpu,
         })
@@ -68,6 +66,7 @@ struct GameApp : App::Module
                 o_color = v_color;
             }
         )"_compact))
+        (Graphics::ShaderManager)(shader_manager, gpu) // Must be after non-static shaders.
     )
 
 

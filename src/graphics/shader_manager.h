@@ -21,6 +21,8 @@ namespace em::Gpu
 
 namespace em::Graphics
 {
+    // Note! If this is a non-static data member in the same class as `ShaderManager`, the shader needs to be declared BEFORE the shader-manager, to ensure the correct destruction order.
+    // If this is a static data member, then this isn't an issue.
     struct Shader
     {
         std::string name;
@@ -50,6 +52,10 @@ namespace em::Graphics
 
         BasicShaderManager() {}
 
+        // Move-only for simplicity.
+        BasicShaderManager(BasicShaderManager &&) = default;
+        BasicShaderManager &operator=(BasicShaderManager &&) = default;
+
       public:
         void AddShader(Shader &new_shader);
     };
@@ -70,6 +76,12 @@ namespace em::Graphics
 
         constexpr ShaderManager() {}
         ShaderManager(Gpu::Device &device);
+
+        // Move-only for simplicity.
+        ShaderManager(ShaderManager &&) = default;
+        ShaderManager &operator=(ShaderManager &&) = default;
+
+        ~ShaderManager();
 
         void Finalize();
 

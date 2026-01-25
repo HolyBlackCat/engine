@@ -14,7 +14,7 @@ namespace em::Gpu
     class CommandBuffer;
     class Device;
 
-    // A texture.
+    // A shader.
     class Shader
     {
         struct State

@@ -31,6 +31,15 @@ namespace em::Graphics
         : device(&device)
     {}
 
+    ShaderManager::~ShaderManager()
+    {
+        // Force-destroy shaders.
+        // This is needed when they are in static variables, to avoid the static deinit order fiasco, when they are destroyed after the Window and GPU get destroyed.
+
+        for (Shader *shader : shaders)
+            shader->shader = {};
+    }
+
     void ShaderManager::Finalize()
     {
         if (finalized)
