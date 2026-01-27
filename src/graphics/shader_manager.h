@@ -21,8 +21,10 @@ namespace em::Gpu
 
 namespace em::Graphics
 {
-    // Note! If this is a non-static data member in the same class as `ShaderManager`, the shader needs to be declared BEFORE the shader-manager, to ensure the correct destruction order.
-    // If this is a static data member, then this isn't an issue.
+    // A single shader managed by the shader manager.
+    // Those are intended to be static variables.
+    // They need to be constructed early, so our current example code only allows non-static shaders in the main game class, as opposed to the game state class that are constructed at runtime.
+    // If this is non-static, it must normally be constructed before `ShaderManager` to ensure the correct destruction order (or manually destroy the `ShaderManager` early for the equivalent result).
     struct Shader
     {
         std::string name;
@@ -32,6 +34,11 @@ namespace em::Graphics
 
         constexpr Shader() {}
         constexpr Shader(std::string name, Gpu::Shader::Stage stage, std::string source) : name(std::move(name)), stage(stage), source(std::move(source)) {}
+
+        Shader(Shader &&) = default;
+        Shader &operator=(Shader &&) = default;
+
+        ~Shader();
     };
 
     // This is a base of `ShaderManager` that can't be constructed directly.

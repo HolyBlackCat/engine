@@ -54,7 +54,7 @@ struct GameApp : App::Module
                 gl_Position = vec4(a_pos, 1);
             }
         )"_compact))
-        (Graphics::Shader)(sh_f, Graphics::Shader("main frag", em::Gpu::Shader::Stage::fragment, (std::string)R"(
+        (Graphics::Shader)(sh_f, Graphics::Shader("main frag", Gpu::Shader::Stage::fragment, (std::string)R"(
             #version 460
 
             layout(location = 0) in vec4 v_color;
@@ -66,7 +66,7 @@ struct GameApp : App::Module
                 o_color = v_color;
             }
         )"_compact))
-        (Graphics::ShaderManager)(shader_manager, gpu) // Must be after non-static shaders.
+        (Graphics::ShaderManager)(shader_manager, gpu) // Must be after non-static shaders, or manually destructed before them.
     )
 
 

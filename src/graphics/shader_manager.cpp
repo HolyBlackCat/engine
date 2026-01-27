@@ -11,6 +11,13 @@
 
 namespace em::Graphics
 {
+    Shader::~Shader()
+    {
+        // Make sure the `shader` was already destroyed by `ShaderManager`.
+        // If it wasn't, it's a sign of the wrong destruction order. See the comment on `Shader` for more details.
+        assert(!shader);
+    }
+
     void BasicShaderManager::AddShader(Shader &new_shader)
     {
         if (finalized)
