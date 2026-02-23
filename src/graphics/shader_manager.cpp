@@ -18,6 +18,11 @@ namespace em::Graphics
         assert(!shader);
     }
 
+    bool BasicShaderManager::ShaderNameLess::operator()(const Shader *a, const Shader *b)
+    {
+        return std::tie(a->stage, a->name) < std::tie(b->stage, b->name);
+    }
+
     void BasicShaderManager::AddShader(Shader &new_shader)
     {
         if (finalized)
@@ -74,7 +79,21 @@ namespace em::Graphics
             }
             catch (...)
             {
-                std::throw_with_nested(std::runtime_error(fmt::format("While loading shader `{}`:", shader.name)));
+                std::string_view stage_name;
+                switch (shader.stage)
+                {
+                  case Gpu::Shader::Stage::vertex:
+                    stage_name = "vertex";
+                    break;
+                  case Gpu::Shader::Stage::fragment:
+                    stage_name = "fragment";
+                    break;
+                  case Gpu::Shader::Stage::compute:
+                    stage_name = "compute";
+                    break;
+                }
+
+                std::throw_with_nested(std::runtime_error(fmt::format("While loading {} shader `{}`:", stage_name, shader.name)));
             }
         };
 

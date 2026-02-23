@@ -1,10 +1,13 @@
 #pragma once
 
+#include "em/refl/macros/structs.h"
+#include "gpu/pipeline.h"
 #include "gpu/shader.h"
 #include "utils/filesystem.h"
 
 #include <fmt/format.h>
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -33,12 +36,44 @@ namespace em::Graphics
         Gpu::Shader shader; // This one field is set lazily by `ShaderManager` when it loads the shaders.
 
         constexpr Shader() {}
+        // Only the combination of `name` + `stage` needs to be unique, so don't add "vertex"/"fragment" to your shader names.
         constexpr Shader(std::string name, Gpu::Shader::Stage stage, std::string source) : name(std::move(name)), stage(stage), source(std::move(source)) {}
 
         Shader(Shader &&) = default;
         Shader &operator=(Shader &&) = default;
 
         ~Shader();
+
+        // To help passing this into `Gpu::Pipeline::Shaders`.
+        operator Gpu::Shader *()
+        {
+            return &shader;
+        }
+    };
+
+    // A shader program managed by the shader manager.
+    // Those are intended to be static variables.
+    struct ShaderProgram
+    {
+        EM_REFL(
+            (std::shared_ptr<Shader>)(vertex)
+            (std::shared_ptr<Shader>)(fragment)
+        )
+
+        constexpr ShaderProgram() {}
+        ShaderProgram(std::string name, std::string vertex_source, std::string fragment_source)
+            : vertex(std::make_shared<Shader>(name, Gpu::Shader::Stage::vertex, std::move(vertex_source))),
+            fragment(std::make_shared<Shader>(std::move(name), Gpu::Shader::Stage::fragment, std::move(fragment_source)))
+        {}
+        ShaderProgram(std::shared_ptr<Shader> vertex, std::shared_ptr<Shader> fragment)
+            : vertex(std::move(vertex)), fragment(std::move(fragment))
+        {}
+
+        // To help passing this into `Gpu::Pipeline`.
+        operator Gpu::Pipeline::Shaders()
+        {
+            return {*vertex, *fragment};
+        }
     };
 
     // This is a base of `ShaderManager` that can't be constructed directly.
@@ -48,10 +83,7 @@ namespace em::Graphics
       protected:
         struct ShaderNameLess
         {
-            static bool operator()(const Shader *a, const Shader *b)
-            {
-                return a->name < b->name;
-            }
+            static bool operator()(const Shader *a, const Shader *b);
         };
 
         std::set<Shader *, ShaderNameLess> shaders;

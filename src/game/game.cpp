@@ -1,7 +1,6 @@
 #include "command_line/parser_refl.h"
 #include "command_line/parser.h"
 #include "em/refl/macros/structs.h"
-#include "em/refl/recursively_visit_elems_maybe_static.h"
 #include "em/refl/static_virtual.h"
 #include "gpu/buffer.h"
 #include "gpu/command_buffer.h"
@@ -40,32 +39,34 @@ struct GameApp : App::Module
         (Window)(window, Window::Params{
             .gpu_device = &gpu,
         })
-        (Graphics::Shader)(sh_v, Graphics::Shader("main vert", Gpu::Shader::Stage::vertex, (std::string)R"(
-            #version 460
+        (Graphics::ShaderProgram)(shaders, Graphics::ShaderProgram("main",
+            (std::string)R"(
+                #version 460
 
-            layout(location = 0) in vec3 a_pos;
-            layout(location = 1) in vec4 a_color;
+                layout(location = 0) in vec3 a_pos;
+                layout(location = 1) in vec4 a_color;
 
-            layout(location = 0) out vec4 v_color;
+                layout(location = 0) out vec4 v_color;
 
-            void main()
-            {
-                v_color = a_color;
-                gl_Position = vec4(a_pos, 1);
-            }
-        )"_compact))
-        (Graphics::Shader)(sh_f, Graphics::Shader("main frag", Gpu::Shader::Stage::fragment, (std::string)R"(
-            #version 460
+                void main()
+                {
+                    v_color = a_color;
+                    gl_Position = vec4(a_pos, 1);
+                }
+            )"_compact,
+            (std::string)R"(
+                #version 460
 
-            layout(location = 0) in vec4 v_color;
+                layout(location = 0) in vec4 v_color;
 
-            layout(location = 0) out vec4 o_color;
+                layout(location = 0) out vec4 o_color;
 
-            void main()
-            {
-                o_color = v_color;
-            }
-        )"_compact))
+                void main()
+                {
+                    o_color = v_color;
+                }
+            )"_compact
+        ))
         (Graphics::ShaderManager)(shader_manager, gpu) // Must be after non-static shaders, or manually destructed before them.
     )
 
@@ -84,7 +85,7 @@ struct GameApp : App::Module
     GameApp(int argc, char **argv)
     {
         { // Collect needed shaders, before parsing the flags.
-            Refl::RecursivelyVisitMaybeStaticElemsOfTypeCvref<Graphics::Shader &>(*this, [&](Graphics::Shader &sh){shader_manager.AddShader(sh);});
+            Refl::RecursivelyVisitStaticElemsOfTypeCvref<Graphics::Shader &>(*this, [&](Graphics::Shader &sh){shader_manager.AddShader(sh);});
         }
 
         { // Parse the command line args.
@@ -98,10 +99,7 @@ struct GameApp : App::Module
         }
 
         pipeline = Gpu::Pipeline(gpu, Gpu::Pipeline::Params{
-            .shaders = {
-                .vert = &sh_v.shader,
-                .frag = &sh_f.shader,
-            },
+            .shaders = shaders,
             .vertex_buffers = {
                 {
                     Gpu::ReflectedVertexLayout<Vertex>{},

@@ -46,10 +46,12 @@ namespace em::CommandLine::Refl
     template <typename T>
     void AddProvidedCommandLineFlagsStatic(Parser &parser)
     {
-        em::Refl::RecursivelyVisitTypesMatchingPred<T, ProvidesCommandLineFlagsPred>([&parser]<typename SubT> -> void
-        {
-            // Catch non-void return types this way.
-            return std::remove_cvref_t<SubT>::ProvidedCommandLineFlags(parser);
-        });
+        em::Refl::RecursivelyVisitStaticTypesMatchingPred<T, std::remove_cvref_t, ProvidesCommandLineFlagsPred>(
+            [&parser]<typename SubT> -> void
+            {
+                // Catch non-void return types this way.
+                return std::remove_cvref_t<SubT>::ProvidedCommandLineFlags(parser);
+            }
+        );
     }
 }
