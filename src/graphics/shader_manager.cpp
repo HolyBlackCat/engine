@@ -71,6 +71,19 @@ namespace em::Graphics
         std::vector<CompiledShader> compiled_shaders;
         std::vector<ProcessQueue::Task> compilation_tasks;
 
+        auto ShaderStageToString = [](Gpu::Shader::Stage stage) -> std::string_view
+        {
+            switch (stage)
+            {
+              case Gpu::Shader::Stage::vertex:
+                return "vertex";
+              case Gpu::Shader::Stage::fragment:
+                return "fragment";
+              case Gpu::Shader::Stage::compute:
+                return "compute";
+            }
+        };
+
         auto FinalizeShader = [&](Shader &shader, const_byte_view binary)
         {
             try
@@ -79,21 +92,7 @@ namespace em::Graphics
             }
             catch (...)
             {
-                std::string_view stage_name;
-                switch (shader.stage)
-                {
-                  case Gpu::Shader::Stage::vertex:
-                    stage_name = "vertex";
-                    break;
-                  case Gpu::Shader::Stage::fragment:
-                    stage_name = "fragment";
-                    break;
-                  case Gpu::Shader::Stage::compute:
-                    stage_name = "compute";
-                    break;
-                }
-
-                std::throw_with_nested(std::runtime_error(fmt::format("While loading {} shader `{}`:", stage_name, shader.name)));
+                std::throw_with_nested(std::runtime_error(fmt::format("While loading {} shader `{}`:", ShaderStageToString(shader.stage), shader.name)));
             }
         };
 
@@ -157,7 +156,7 @@ namespace em::Graphics
                 command.append_range(glslc_flags);
 
                 compilation_tasks.push_back({
-                    .name = shader->name,
+                    .name = fmt::format("{} ({})", shader->name, ShaderStageToString(shader->stage)),
                     .command = std::move(command),
                     .input = shader->source,
                 });
