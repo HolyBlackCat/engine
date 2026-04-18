@@ -94,7 +94,7 @@ namespace em::Graphics
         constexpr Renderer2d() {}
 
         // Before calling this, you must have a render command buffer and a copy command buffer, and start render and copy passes on them respectively.
-        // You must submit `copy_pass` before `render_pass` after the destructor runs.
+        // After the destructor runs, you must submit `copy_pass` and then `render_pass`, in this order.
         // `viewport_size` only affects how the input coordinates are mapped to NDC.
         Renderer2d(Gpu::Device &device, Resources &resources, Gpu::CommandBuffer &render_cmdbuf, Gpu::RenderPass &render_pass, Gpu::CopyPass &copy_pass, SDL_GPUTextureFormat output_format, ivec2 viewport_size);
 

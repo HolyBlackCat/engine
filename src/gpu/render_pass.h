@@ -30,6 +30,11 @@ namespace em::Gpu
       public:
         constexpr RenderPass() {}
 
+        // Load the existing texture contents and don't clear them.
+        struct Load {};
+        // Neither load nor clear. The target contents will start in an undefined state.
+        struct DontCare {};
+
         // Clear the contents.
         struct ColorClear
         {
@@ -38,12 +43,8 @@ namespace em::Gpu
             //   which makes us lose aggregate-ness, which isn't what I want. So we keep this default-constructed, and provide a default color below.
             fvec4 color;
         };
-        // Load the existing texture contents and don't clear them.
-        struct ColorLoad {};
-        // Neither load nor clear. The target contents will start in an undefined state.
-        struct ColorDontCare {};
 
-        using ColorInitialContents = std::variant<ColorClear, ColorLoad, ColorDontCare>;
+        using ColorInitialContents = std::variant<ColorClear, Load, DontCare>;
 
         struct TextureTarget
         {
@@ -67,7 +68,7 @@ namespace em::Gpu
             ColorInitialContents initial_contents = ColorClear{fvec4(0,0,0,1)};
 
             // If false the output will be undefined. If true it will be written to the texture.
-            // Even if this is true, the comments in SDL headers make it look like we still need to specify a texture.
+            // Even if this is false, the comments in SDL headers make it look like we still need to specify a texture.
             bool store_output = true;
 
             // You can optionally set this if `texture` is a multisample texture.
@@ -85,10 +86,8 @@ namespace em::Gpu
             //   which makes us lose aggregate-ness, which isn't what I want. So we keep this default-constructed, and provide a default color below.
             float value;
         };
-        struct DepthLoad {};
-        struct DepthDontCare {};
 
-        using DepthInitialContents = std::variant<DepthClear, DepthLoad, DepthDontCare>;
+        using DepthInitialContents = std::variant<DepthClear, Load, DontCare>;
 
         struct DepthTarget
         {
@@ -180,7 +179,7 @@ namespace em::Gpu
             std::uint32_t byte_offset = 0;
         };
 
-        // Select what vertex buffer to use.
+        // Select what vertex buffers to use.
         void BindVertexBuffers(std::span<const VertexBuffer> buffers, std::uint32_t first_slot = 0);
 
 

@@ -4,7 +4,6 @@
 #include "gpu/buffer.h"
 #include "gpu/command_buffer.h"
 #include "gpu/pipeline.h"
-#include "gpu/sampler.h"
 #include "gpu/texture.h"
 
 #include <fmt/format.h>
@@ -39,11 +38,11 @@ namespace em::Gpu
                     sdl_target.clear_color.b = color.color.b();
                     sdl_target.clear_color.a = color.color.a();
                 },
-                [&](const ColorLoad &)
+                [&](const Load &)
                 {
                     sdl_target.load_op = SDL_GPU_LOADOP_LOAD;
                 },
-                [&](const ColorDontCare &)
+                [&](const DontCare &)
                 {
                     sdl_target.load_op = SDL_GPU_LOADOP_DONT_CARE;
                 },
@@ -74,11 +73,11 @@ namespace em::Gpu
                     sdl_depth_stencil.load_op = SDL_GPU_LOADOP_CLEAR;
                     sdl_depth_stencil.clear_depth = depth.value;
                 },
-                [&](const DepthLoad &)
+                [&](const Load &)
                 {
                     sdl_depth_stencil.load_op = SDL_GPU_LOADOP_LOAD;
                 },
-                [&](const DepthDontCare &)
+                [&](const DontCare &)
                 {
                     sdl_depth_stencil.load_op = SDL_GPU_LOADOP_DONT_CARE;
                 },

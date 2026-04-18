@@ -187,15 +187,17 @@ namespace em::Gpu
         };
 
         // The blending settings separate for color and for alpha.
+        // Defaults to overwriting the target with no blending.
         struct ChannelBlending
         {
-            SDL_GPUBlendFactor source{};
-            SDL_GPUBlendFactor target{};
+            SDL_GPUBlendFactor source = SDL_GPU_BLENDFACTOR_ONE;
+            SDL_GPUBlendFactor target = SDL_GPU_BLENDFACTOR_ZERO;
 
             SDL_GPUBlendOp operation = SDL_GPU_BLENDOP_ADD;
         };
 
         // Combined color and alpha settings.
+        // Defaults to overwriting the target with no blending.
         struct Blending
         {
             ChannelBlending color;

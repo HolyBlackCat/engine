@@ -114,5 +114,7 @@ namespace em::Gpu
         [[nodiscard]] ivec3 GetSize() const {return state.size;}
 
         [[nodiscard]] Type GetType() const {return state.type;}
+
+        [[nodiscard]] SDL_GPUTextureFormat GetFormat() const {return state.format;}
     };
 }
