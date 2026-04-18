@@ -26,7 +26,11 @@ namespace em::Graphics
             void main()
             {
                 gl_Position = vec4(a_pos, 0, 1);
-                v_texcoord = a_pos * 0.5 + 0.5;
+
+                // The negation of Y is optional. Removing the negation cancels itself out over the two render passes.
+                // But negating it here helps when looking at the intermediate texture in renderdoc.
+                // Without the negation it would be mirrored vertically.
+                v_texcoord = a_pos * vec2(0.5, -0.5) + 0.5;
             }
         )"_compact,
         (std::string)R"(
