@@ -78,7 +78,7 @@ namespace em::CommandLine
 
         // We use this to check for duplicate flags, for flags don't allow it.
         // We can safely use pointers here, because flags have stable addresses in their `std::shared_ptr`s.
-        phmap::flat_hash_set<const BasicFlag *> once_flags;
+        gtl::flat_hash_set<const BasicFlag *> once_flags;
 
         auto CheckForRepeatedFlag = [&](const BasicFlag &flag, std::string_view name)
         {

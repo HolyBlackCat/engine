@@ -63,17 +63,6 @@ $(call ProjectSetting,cxxflags,-DEM_ENABLE_TESTS)
 $(call ProjectSetting,libs,*)
 
 
-# Shader compilation:
-ASSETS_IGNORED_PATTERNS += *.glsl
-ASSETS_GENERATED += $(patsubst %.glsl,%.spv,$(wildcard assets/assets/shaders/*.glsl))
-assets/%.vert.spv: assets/%.vert.glsl
-	$(call log_now,[GLSL Vertex] $<)
-	@glslc -fshader-stage=vert $< -o $@ -O
-assets/%.frag.spv: assets/%.frag.glsl
-	$(call log_now,[GLSL Fragment] $<)
-	@glslc -fshader-stage=frag $< -o $@ -O
-
-
 # --- Dependencies ---
 
 # On Windows, install following for SDL3:
@@ -114,7 +103,7 @@ _win_sdl3_arch := $(if $(_win_is_x32),i686-w64-mingw32,x86_64-w64-mingw32)
 # $(call Library,enkits,enkiTS-686d0ec-2024-05-29.zip)
 #   $(call LibrarySetting,cmake_flags,-DENKITS_INSTALL=ON -DENKITS_BUILD_SHARED=ON -DENKITS_BUILD_EXAMPLES=OFF)
 
-$(call Library,fmt,https://github.com/fmtlib/fmt/releases/download/11.2.0/fmt-11.2.0.zip)
+$(call Library,fmt,https://github.com/fmtlib/fmt/releases/download/12.1.0/fmt-12.1.0.zip)
   $(call LibrarySetting,cmake_flags,-DFMT_TEST=OFF)
 
 # ifeq ($(TARGET_OS),emscripten)
@@ -125,16 +114,15 @@ $(call Library,fmt,https://github.com/fmtlib/fmt/releases/download/11.2.0/fmt-11
 # endif
 
 
-# Using a commit directly from `master` because new CMake chokes on release 1.24.3.
-$(call Library,openal_soft,https://github.com/kcat/openal-soft/archive/b72944e4c36486fee75f1c654321fed82dfa20b5.zip)
+$(call Library,openal_soft,https://github.com/kcat/openal-soft/archive/refs/tags/1.25.1.tar.gz)
   # I think AL can also utlize zlib, but we don't build zlib for now, and it's not clear what it gives AL anyway.
   $(call LibrarySetting,deps,sdl3)
   # `ALSOFT_UTILS=FALSE` disables helper executables. Otherwise Windows builds fail because of missing Qt.
   # We used to disable other backends here, but it seems our CMake isolation should make this unnecessary.
   $(call LibrarySetting,cmake_flags,-DALSOFT_EXAMPLES=FALSE -DALSOFT_UTILS=FALSE -DALSOFT_REQUIRE_SDL3=TRUE -DALSOFT_BACKEND_SDL3=TRUE)
 
-$(call Library,phmap,https://github.com/greg7mdp/parallel-hashmap/archive/88123934b46b77c3b6d80167382734cbff6eff74.zip)
-  $(call LibrarySetting,cmake_flags,-DPHMAP_BUILD_TESTS=OFF -DPHMAP_BUILD_EXAMPLES=OFF)# Otherwise it downloads GTest, which is nonsense.
+$(call Library,gtl,https://github.com/greg7mdp/gtl/archive/fd759e1957e7d5c789260e87a2646cb418bd4c38.zip)
+  $(call LibrarySetting,cmake_flags,-DGTL_BUILD_TESTS=OFF -DGTL_BUILD_EXAMPLES=OFF -DGTL_BUILD_BENCHMARK=OFF)# Otherwise it downloads GTest, which is nonsense.
 
 # ifeq ($(TARGET_OS),emscripten)
 # $(call LibraryStub,sdl3,-sUSE_SDL=3)# This wasn't tested yet.
@@ -146,19 +134,19 @@ $(call Library,phmap,https://github.com/greg7mdp/parallel-hashmap/archive/881239
 #   $(call LibrarySetting,build_system,copy_files)
 #   $(call LibrarySetting,copy_files,$(_win_sdl3_arch)/*->.)
 # else
-$(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/release-3.2.22/SDL3-3.2.22.tar.gz)
+$(call Library,sdl3,https://github.com/libsdl-org/SDL/releases/download/release-3.4.4/SDL3-3.4.4.tar.gz)
   $(call LibrarySetting,cmake_allow_using_system_deps,1)
 # $(call Library,sdl3_net,SDL2_net-2.2.0.tar.gz)
 #   $(call LibrarySetting,deps,sdl3)
 # endif
 
-$(call Library,sdl_shadercross,https://github.com/libsdl-org/SDL_shadercross/archive/4ce748310f57d405b4eb2a79fbbc7e974d6491ec.zip)
+$(call Library,sdl_shadercross,https://github.com/libsdl-org/SDL_shadercross/archive/f5c01f451e835f6b38e151e064a32999a0985563.zip)
   $(call LibrarySetting,deps,sdl3 spirv_cross)
   # Disabling HLSL input, only keeping SPIRV input.
   # Enable installation, otherwise CMake installs nothing.
   $(call LibrarySetting,cmake_flags,-DSDLSHADERCROSS_DXC=OFF -DSDLSHADERCROSS_INSTALL=ON)
 
-$(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/b26ac3fa8bcfe76c361b56e3284b5276b23453ce.zip)
+$(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/4d4b79bd7b69b07fabdeb06f849334ba79ea7cee.zip)
   # Disabling tests for speed.
   # Switching from static to dynamic libs just in case, in case we need to link it to our own app.
   # Disabling CLI tools because we don't need them and because they need static libs.
@@ -168,7 +156,7 @@ $(call Library,spirv_cross,https://github.com/KhronosGroup/SPIRV-Cross/archive/b
 #   # Disable the executable and enable the library. They only support a static library, whatever.
 #   $(call LibrarySetting,cmake_flags,-DSPIRV_REFLECT_EXECUTABLE=OFF -DSPIRV_REFLECT_STATIC_LIB=ON)
 
-$(call Library,stb,https://github.com/nothings/stb/archive/fede005abaf93d9d7f3a679d1999b2db341b360f.zip)
+$(call Library,stb,https://github.com/nothings/stb/archive/31c1ad37456438565541f4919958214b6e762fb4.zip)
   $(call LibrarySetting,build_system,dummy)
   # Out of those, `rectpack` is used both by us and ImGui.
   # There's also `textedit`, which ImGui uses and we don't but we let ImGui keep its version, since it's slightly patched.

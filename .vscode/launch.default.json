@@ -15,7 +15,7 @@
             "preLaunchTask": "Build",
             "initCommands": [
                 // Enable printing of the `phmap` hashmaps. The path needs to be updated when the library is updated.
-                // "command script import ${workspaceRoot}/build/deps/phmap-88123934b46b77c3b6d80167382734cbff6eff74/source/phmap_lldb.py",
+                "command script import ${workspaceRoot}/build/deps/gtl-fd759e1957e7d5c789260e87a2646cb418bd4c38/source/include/gtl/debug_vis/gtl_lldb.py",
             ],
             "env": [/*<ENV_JSON_ARR>*/],
             "enableAutoVariableSummaries": true,
@@ -33,7 +33,7 @@
             "preLaunchTask": "Build",
             "initCommands": [
                 // Enable printing of the `phmap` hashmaps. The path needs to be updated when the library is updated.
-                "command script import build/deps/phmap-88123934b46b77c3b6d80167382734cbff6eff74/source/phmap_lldb.py",
+                "command script import build/deps/gtl-fd759e1957e7d5c789260e87a2646cb418bd4c38/source/include/gtl/debug_vis/gtl_lldb.py",
             ],
             "env": {/*<ENV_JSON_DICT>*/},
         },

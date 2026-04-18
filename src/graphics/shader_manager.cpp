@@ -7,6 +7,8 @@
 #include "utils/terminal.h"
 
 #include <fmt/format.h>
+#include <gtl/phmap.hpp>
+
 #include <stdexcept>
 
 namespace em::Graphics
@@ -96,7 +98,7 @@ namespace em::Graphics
             }
         };
 
-        phmap::flat_hash_set<std::string> shader_filenames;
+        gtl::flat_hash_set<std::string> shader_filenames;
 
         for (Shader *shader : shaders)
         {

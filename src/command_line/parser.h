@@ -8,7 +8,7 @@
 #include "strings/split.h"
 
 #include <fmt/format.h>
-#include <parallel_hashmap/phmap.h>
+#include <gtl/phmap.hpp>
 
 #include <cassert>
 #include <functional>
@@ -73,7 +73,7 @@ namespace em::CommandLine
             std::string help_text;
         };
 
-        using NameToFlagMap = phmap::flat_hash_map<std::string, std::shared_ptr<BasicFlag>>;
+        using NameToFlagMap = gtl::flat_hash_map<std::string, std::shared_ptr<BasicFlag>>;
 
       private:
         NameToFlagMap name_to_flag;
