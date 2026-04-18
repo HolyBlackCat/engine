@@ -54,7 +54,7 @@ namespace em::Gpu
             // A mipmap level to write to.
             std::uint32_t mipmap_level = 0;
 
-            // Normally we don't expose the cycle flag, but just in case...
+            // Set to false if you need to load the existing image first.
             bool cycle = true;
         };
 
@@ -66,7 +66,8 @@ namespace em::Gpu
             // The initial contents of this texture.
             ColorInitialContents initial_contents = ColorClear{fvec4(0,0,0,1)};
 
-            // If false the output will be discarded. If true it will be written to the texture.
+            // If false the output will be undefined. If true it will be written to the texture.
+            // Even if this is true, the comments in SDL headers make it look like we still need to specify a texture.
             bool store_output = true;
 
             // You can optionally set this if `texture` is a multisample texture.
@@ -126,7 +127,7 @@ namespace em::Gpu
             DepthTarget depth;
             StencilTarget stencil;
 
-            // Normally we don't expose the cycle flag, but just in case...
+            // Set to false if you need to load the existing image first.
             bool cycle = true;
 
             // SDL docs say that depth/stencil don't support multisample resolving, see: https://wiki.libsdl.org/SDL3/SDL_GPUDepthStencilTargetInfo
@@ -154,7 +155,7 @@ namespace em::Gpu
         struct Viewport
         {
             // Those are measured in PIXELS, with top-left corner being zero.
-            // I'm not entirely sure if those are window pixels or framebuffer pixels (framebuffer can be larger), probably the latter.
+            // I assume those are framebuffer pixels, not window pixels.
             fvec2 pos;
             fvec2 size;
 
@@ -164,6 +165,7 @@ namespace em::Gpu
         };
 
         // Set the active viewport coordinates.
+        // This seems to be optional, it defaults to the entire framebuffer.
         void SetViewport(const Viewport &viewport);
 
 
@@ -180,27 +182,6 @@ namespace em::Gpu
 
         // Select what vertex buffer to use.
         void BindVertexBuffers(std::span<const VertexBuffer> buffers, std::uint32_t first_slot = 0);
-
-
-        struct TextureAndSampler
-        {
-            Texture *texture = nullptr;
-            Sampler *sampler = nullptr;
-        };
-
-        // This is separate from `Shader::Stage` because we can't list compute shaders here, because they must be used in a compute pass, not here.
-        enum class ShaderStage
-        {
-            vertex,
-            fragment,
-        };
-
-        // Select what textures to use. The slots are in a separate namespace unrelated to vertex buffers,
-        //   and apparently each shader stage has its own namespace.
-        // In vertex shaders use `layout(set = 0, binding = MySlotIndex) uniform sampler2D` (or other sampler types).
-        // In fragment shaders use `layout(set = 2, binding = MySlotIndex) uniform sampler2D` (or other sampler types).
-        // See for more details:  https://wiki.libsdl.org/SDL3/SDL_CreateGPUShader
-        void BindTextures(std::span<const TextureAndSampler> textures, ShaderStage shader_stage = ShaderStage::fragment, std::uint32_t first_slot = 0);
 
 
         // Drawing:

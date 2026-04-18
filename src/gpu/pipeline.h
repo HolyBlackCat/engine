@@ -227,10 +227,12 @@ namespace em::Gpu
             [[nodiscard]] static constexpr Blending SimpleToPremultiplied()
             {
                 Blending ret;
-                ret.color.source = SDL_GPU_BLENDFACTOR_ONE;
+                ret.color.source = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
                 ret.color.target = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
                 ret.color.operation = SDL_GPU_BLENDOP_ADD;
-                ret.alpha = ret.color;
+                ret.alpha.source = SDL_GPU_BLENDFACTOR_ONE;
+                ret.alpha.target = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+                ret.alpha.operation = SDL_GPU_BLENDOP_ADD;
                 return ret;
             }
         };
@@ -239,6 +241,7 @@ namespace em::Gpu
         struct ColorTarget
         {
             // The texture format. We default to the classical RGBA8.
+            // If you're rendering to the window, you want to replace this with `Window::GetSwapchainTextureFormat()`.
             SDL_GPUTextureFormat texture_format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
 
             // The blending mode.
@@ -300,13 +303,6 @@ namespace em::Gpu
 
         constexpr Pipeline() {}
 
-        enum class Stage
-        {
-            vertex,
-            fragment,
-            compute,
-        };
-
         Pipeline(Device &device, const Params &params);
 
         Pipeline(Pipeline &&other) noexcept;
@@ -315,5 +311,18 @@ namespace em::Gpu
 
         [[nodiscard]] explicit operator bool() const {return bool(state.pipeline);}
         [[nodiscard]] SDL_GPUGraphicsPipeline *Handle() {return state.pipeline;}
+    };
+
+    // A wrapper for `Pipeline` that can be easily adapted for changing target texture formats, like of a swapchain texture.
+    class DynamicPipeline : public Pipeline
+    {
+        Pipeline::Params params;
+
+      public:
+        constexpr DynamicPipeline() {}
+        DynamicPipeline(Params params) : params(std::move(params)) {}
+
+        // Must call this to actually create the underlying pipeline.
+        void RequestOutputFormat(Device &device, SDL_GPUTextureFormat format);
     };
 }

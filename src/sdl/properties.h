@@ -96,7 +96,7 @@ namespace em
                                                void Set(zstring_view name, bool         value) {InitializeIfNull(); SDL_SetBooleanProperty(handle, name.c_str(), value);}
                                                void Set(zstring_view name, float        value) {InitializeIfNull(); SDL_SetFloatProperty  (handle, name.c_str(), value);}
         template <SdlProperties_IntegerLike T> void Set(zstring_view name, T            value) {InitializeIfNull(); SDL_SetNumberProperty (handle, name.c_str(), value);}
-        template <SdlProperties_StringLike  T> void Set(zstring_view name, zstring_view value) {InitializeIfNull(); SDL_SetStringProperty (handle, name.c_str(), value.c_str());}
+                                               void Set(zstring_view name, zstring_view value) {InitializeIfNull(); SDL_SetStringProperty (handle, name.c_str(), value.c_str());}
         template <SdlProperties_Pointer     T> void Set(zstring_view name, T            value) {InitializeIfNull(); SDL_SetPointerProperty(handle, name.c_str(), (void *)value);} // Need the cast because the input pointer could be const.
     };
 }

@@ -13,6 +13,9 @@ namespace em::Gpu
 {
     class CommandBuffer;
     class Device;
+    class RenderPass;
+    class Sampler;
+    class Texture;
 
     // A shader.
     class Shader
@@ -33,7 +36,7 @@ namespace em::Gpu
         {
             vertex,
             fragment,
-            compute,
+            // Adding compute support needs too much special-casing, so I'll add it when I need it. It should probably go into a separate class.
         };
 
         // The name is optional.
@@ -64,5 +67,19 @@ namespace em::Gpu
         {
             SetUniformBytes(cmdbuf, stage, slot, {reinterpret_cast<const unsigned char *>(&value), sizeof(value)});
         }
+
+
+        struct TextureAndSampler
+        {
+            Texture *texture = nullptr;
+            Sampler *sampler = nullptr;
+        };
+
+        // Select what textures to use. The slots are in a separate namespace unrelated to vertex buffers,
+        //   and apparently each shader stage has its own namespace.
+        // In vertex shaders use `layout(set = 0, binding = MySlotIndex) uniform sampler2D` (or other sampler types).
+        // In fragment shaders use `layout(set = 2, binding = MySlotIndex) uniform sampler2D` (or other sampler types).
+        // See for more details:  https://wiki.libsdl.org/SDL3/SDL_CreateGPUShader
+        static void BindTextures(RenderPass &render_pass, std::span<const TextureAndSampler> textures, Shader::Stage shader_stage = Shader::Stage::fragment, std::uint32_t first_slot = 0);
     };
 }

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "gpu/texture.h"
+#include <cassert>
+#include <optional>
 
 typedef struct SDL_GPUDevice SDL_GPUDevice;
 typedef struct SDL_GPUCommandBuffer SDL_GPUCommandBuffer;
@@ -63,6 +65,7 @@ namespace em::Gpu
         void CancelWhenDestroyed();
 
 
+        // Prefer the higher-level `WaitAndAcquireSwapchainTextureAndCmdBuf()` free function declared below.
         // Get a temporary texture that represents the window.
         // Blocks if there are too many frames in flight. There's a version that doesn't block and returns null, but we don't expose that at the moment.
         // CAN RETURN NULL if the window is minimized. Don't render anything in that case.
@@ -71,4 +74,22 @@ namespace em::Gpu
         // This seems to never return null for me on Linux on XFCE, but it does return null in Wine, and there cancelling works fine.
         [[nodiscard]] Texture WaitAndAcquireSwapchainTexture(Window &window);
     };
+
+    struct SwapchainAcquireResult
+    {
+        CommandBuffer cmdbuf;
+        Texture texture;
+
+        [[nodiscard]] explicit operator bool() const
+        {
+            assert(bool(cmdbuf) == bool(texture));
+            return bool(cmdbuf);
+        }
+    };
+
+    // Acquired a command buffer and a swapchain texture for a window. Call this at the beginning of a frame. If it returns null, skip the frame.
+    // This is a higher-level wrapper for `CommandBuffer::WaitAndAcquireSwapchainTexture()`.
+    // CAN RETURN NULL if the window is minimized. Don't render anything in that case.
+    // This seems to never return null for me on Linux on XFCE, but it does return null in Wine, and there cancelling works fine.
+    [[nodiscard]] SwapchainAcquireResult WaitAndAcquireSwapchainTextureAndCmdBuf(Window &window, Device &device, Fence *output_fence = nullptr);
 }

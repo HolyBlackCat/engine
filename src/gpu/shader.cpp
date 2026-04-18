@@ -1,7 +1,11 @@
 #include "shader.h"
 
+#include "em/macros/utils/finally.h"
 #include "gpu/command_buffer.h"
 #include "gpu/device.h"
+#include "gpu/render_pass.h"
+#include "gpu/sampler.h"
+#include "sdl/properties.h"
 
 #include <fmt/format.h>
 #include <SDL3_shadercross/SDL_shadercross.h>
@@ -23,12 +27,13 @@ namespace em::Gpu
           case Stage::fragment:
             shadercross_stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT;
             break;
-          case Stage::compute:
-            shadercross_stage = SDL_SHADERCROSS_SHADERSTAGE_COMPUTE;
-            break;
           default:
             throw std::logic_error("Invalid shader stage enum.");
         }
+
+        SdlProperties props;
+        props.Set(SDL_SHADERCROSS_PROP_SHADER_DEBUG_ENABLE_BOOLEAN, device.DebugModeEnabled());
+        props.Set(SDL_SHADERCROSS_PROP_SHADER_DEBUG_NAME_STRING, name);
 
         SDL_ShaderCross_SPIRV_Info input{
             .bytecode = reinterpret_cast<const unsigned char *>(spirv_binary.data()),
@@ -39,20 +44,20 @@ namespace em::Gpu
             .entrypoint = "main",
             .shader_stage = shadercross_stage,
             // We could add a way to override this. Should we?
-            .enable_debug = device.DebugModeEnabled(),
-            .name = name.empty() ? nullptr : name.c_str(),
             // None for now?
-            .props = 0,
+            .props = props.Handle(),
         };
+
+        // Produce the reflection metadata needed by `SDL_ShaderCross_CompileGraphicsShaderFromSPIRV()`.
+        SDL_ShaderCross_GraphicsShaderMetadata *reflected_metadata = SDL_ShaderCross_ReflectGraphicsSPIRV(input.bytecode, input.bytecode_size, 0);
+        if (!reflected_metadata)
+            throw std::runtime_error(fmt::format("Unable to reflect SPIRV shader: {}", SDL_GetError()));
+        EM_FINALLY{ SDL_free(reflected_metadata); };
 
         // Must set before creating the shader to let the destructor do its job if we throw later in this function.
         state.device = device.Handle();
 
-        // The output parameter for this is not optional, so we must have this even if we're not going to use it.
-        SDL_ShaderCross_GraphicsShaderMetadata output_metadata{};
-
-        // This also outputs some reflection metadata. Do we need it?
-        state.shader = SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(device.Handle(), &input, &output_metadata, 0);
+        state.shader = SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(device.Handle(), &input, &reflected_metadata->resource_info, 0);
         if (!state.shader)
             throw std::runtime_error(fmt::format("Unable to compile SPIRV shader: {}", SDL_GetError()));
     }
@@ -86,11 +91,35 @@ namespace em::Gpu
           case Stage::fragment:
             SDL_PushGPUFragmentUniformData(cmdbuf.Handle(), slot, bytes.data(), std::uint32_t(bytes.size()));
             return;
-          case Stage::compute:
-            SDL_PushGPUComputeUniformData(cmdbuf.Handle(), slot, bytes.data(), std::uint32_t(bytes.size()));
-            return;
         }
 
         throw std::logic_error("Invalid shader stage enum.");
+    }
+
+    void Shader::BindTextures(RenderPass &render_pass, std::span<const TextureAndSampler> textures, Shader::Stage shader_stage, std::uint32_t first_slot)
+    {
+        std::vector<SDL_GPUTextureSamplerBinding> sdl_textures;
+        sdl_textures.reserve(textures.size());
+
+        for (const TextureAndSampler &texture : textures)
+        {
+            sdl_textures.push_back({
+                .texture = texture.texture->Handle(),
+                .sampler = texture.sampler->Handle(),
+            });
+        }
+
+        // Those functions can't fail.
+        switch (shader_stage)
+        {
+          case Shader::Stage::vertex:
+            SDL_BindGPUVertexSamplers(render_pass.Handle(), first_slot, sdl_textures.data(), std::uint32_t(sdl_textures.size()));
+            break;
+          case Shader::Stage::fragment:
+            SDL_BindGPUFragmentSamplers(render_pass.Handle(), first_slot, sdl_textures.data(), std::uint32_t(sdl_textures.size()));
+            break;
+          default:
+            throw std::logic_error("Invalid shader stage enum.");
+        }
     }
 }

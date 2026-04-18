@@ -50,7 +50,7 @@ namespace em::Gpu
 
                 auto Recurse = [&]<typename VisitDesc, Meta::Deduce..., typename T>(this auto &&self, const T &target) -> void
                 {
-                    if constexpr (Refl::ClassifiesAs<T, Refl::Category::structure>)
+                    if constexpr (!Math::vector_cvref<T> && Refl::ClassifiesAs<T, Refl::Category::structure>)
                         Refl::VisitMembers<Meta::LoopSimple, {}, VisitDesc::mode>(target, self);
                     else
                         AppendAttr.template operator()<VisitDesc>(target);

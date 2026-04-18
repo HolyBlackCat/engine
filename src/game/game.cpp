@@ -11,6 +11,7 @@
 #include "gpu/render_pass.h"
 #include "gpu/shader.h"
 #include "gpu/transfer_buffer.h"
+#include "graphics/renderer_2d.h"
 #include "graphics/shader_manager.h"
 #include "mainloop/game_state.h"
 #include "mainloop/main.h"
@@ -39,48 +40,10 @@ struct GameApp : App::Module
         (Window)(window, Window::Params{
             .gpu_device = &gpu,
         })
-        (Graphics::ShaderProgram)(shaders, Graphics::ShaderProgram("main",
-            (std::string)R"(
-                #version 460
-
-                layout(location = 0) in vec3 a_pos;
-                layout(location = 1) in vec4 a_color;
-
-                layout(location = 0) out vec4 v_color;
-
-                void main()
-                {
-                    v_color = a_color;
-                    gl_Position = vec4(a_pos, 1);
-                }
-            )"_compact,
-            (std::string)R"(
-                #version 460
-
-                layout(location = 0) in vec4 v_color;
-
-                layout(location = 0) out vec4 o_color;
-
-                void main()
-                {
-                    o_color = v_color;
-                }
-            )"_compact
-        ))
-        (Graphics::ShaderManager)(shader_manager, gpu) // Must be after non-static shaders, or manually destructed before them.
+        (Graphics::ShaderManager)(shader_manager, gpu)
+        (Gpu::Texture)(texture)
+        (Graphics::Renderer2d::Resources)(renderer_resources)
     )
-
-
-
-    EM_STRUCT(Vertex)
-    (
-        (fvec3)(pos)
-        (fvec3)(color)
-    )
-
-    Gpu::Pipeline pipeline;
-
-    Gpu::Buffer buffer = Gpu::Buffer(gpu, sizeof(fvec3) * 6);
 
     GameApp(int argc, char **argv)
     {
@@ -98,69 +61,52 @@ struct GameApp : App::Module
             parser.Parse(argc, argv);
         }
 
-        pipeline = Gpu::Pipeline(gpu, Gpu::Pipeline::Params{
-            .shaders = shaders,
-            .vertex_buffers = {
-                {
-                    Gpu::ReflectedVertexLayout<Vertex>{},
-                }
-            },
-            .targets = {
-                .color = {
-                    Gpu::Pipeline::ColorTarget{
-                        .texture_format = window.GetSwapchainTextureFormat()
-                    }
-                },
-            },
-        });
+        // Init graphics:
 
-        Vertex verts[3] = {
-            {
-                .pos = fvec3(0, 0.5, 0),
-                .color = fvec3(1, 0, 0),
-            },
-            {
-                .pos = fvec3(0.5, -0.5, 0),
-                .color = fvec3(0, 1, 0),
-            },
-            {
-                .pos = fvec3(-0.5, -0.5, 0),
-                .color = fvec3(0, 0, 1),
-            },
-        };
+        { // Load the texture.
+            Gpu::CommandBuffer cmdbuf(gpu);
+            Gpu::CopyPass copy_pass(cmdbuf);
+            texture = Gpu::Texture(gpu, copy_pass, Image("dummy", Filesystem::LoadedFile(fmt::format("{}assets/images/dummy.png", Filesystem::GetResourceDir()))));
+        }
 
-
-        Gpu::CommandBuffer cmdbuf(gpu);
-        Gpu::CopyPass pass(cmdbuf);
-
-        buffer = Gpu::Buffer(gpu, pass, verts);
+        renderer_resources = Graphics::Renderer2d::Resources(gpu, Graphics::Renderer2d::Params{.num_triangles = 1, .texture = &texture});
     }
 
     App::Action Tick() override
     {
-        Gpu::CommandBuffer cmdbuf(gpu);
-        Gpu::Texture swapchain_tex = cmdbuf.WaitAndAcquireSwapchainTexture(window);
-        if (!swapchain_tex)
+        Gpu::SwapchainAcquireResult swapchain = WaitAndAcquireSwapchainTextureAndCmdBuf(window, gpu);
+        if (!swapchain)
         {
-            cmdbuf.CancelWhenDestroyed();
+            swapchain.cmdbuf.CancelWhenDestroyed();
             return App::Action::cont; // No draw target.
         }
 
-        Gpu::RenderPass rp(cmdbuf, Gpu::RenderPass::Params{
+        Gpu::CommandBuffer copy_cmdbuf(gpu);
+
+        Gpu::RenderPass render_pass(swapchain.cmdbuf, Gpu::RenderPass::Params{
             .color_targets = {
                 Gpu::RenderPass::ColorTarget{
                     .texture = {
-                        .texture = &swapchain_tex,
+                        .texture = &swapchain.texture,
                     },
                 },
             },
         });
 
-        rp.BindPipeline(pipeline);
-        rp.BindVertexBuffers({{Gpu::RenderPass::VertexBuffer{
-            .buffer = &buffer,
-        }}});
-        rp.DrawPrimitives(3);
+        Gpu::CopyPass copy_pass(copy_cmdbuf);
+
+        Graphics::Renderer2d r(gpu, renderer_resources, swapchain.cmdbuf, render_pass, copy_pass, window.GetSwapchainTextureFormat(), swapchain.texture.GetSize().to_vec2());
+
+        Graphics::Renderer2d::Vertex verts[] {
+            Graphics::Renderer2d::Vertex(fvec2(100, 100), fvec4(1,0,0,1)),
+            Graphics::Renderer2d::Vertex(fvec2(200, 100), fvec4(0,1,0,1)),
+            Graphics::Renderer2d::Vertex(fvec2(100, 200), fvec4(0,0,1,1)),
+            Graphics::Renderer2d::Vertex(fvec2(150, 100), fvec2(0,0)),
+            Graphics::Renderer2d::Vertex(fvec2(250, 100), fvec2(texture.GetSize().x,0)),
+            Graphics::Renderer2d::Vertex(fvec2(150, 200), fvec2(0,texture.GetSize().y)),
+        };
+
+        r.DrawVertices(verts);
 
         return App::Action::cont;
     }

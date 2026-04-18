@@ -124,5 +124,9 @@ namespace em
         // This doesn't work automatically (through `operator zstring_view`) in some cases,
         //   because the compiler refuses to consider more than one user-defined conversion at the same time.
         [[nodiscard]] operator std::string_view() const {return {reinterpret_cast<const char *>(ptr.get()), data_size.value};}
+
+        // Convert from `zblob` to `blob`.
+        [[nodiscard]] operator basic_blob<!IsNullTerminated>() const & requires IsNullTerminated {return {ptr, data_size.value};}
+        [[nodiscard]] operator basic_blob<!IsNullTerminated>() && requires IsNullTerminated {return {std::move(ptr), data_size.value};}
     };
 }

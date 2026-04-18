@@ -81,8 +81,6 @@ namespace em::Graphics
                 return "vertex";
               case Gpu::Shader::Stage::fragment:
                 return "fragment";
-              case Gpu::Shader::Stage::compute:
-                return "compute";
             }
         };
 
@@ -112,9 +110,6 @@ namespace em::Graphics
                 break;
               case Gpu::Shader::Stage::fragment:
                 stage_name = "frag";
-                break;
-              case Gpu::Shader::Stage::compute:
-                stage_name = "comp";
                 break;
             }
 

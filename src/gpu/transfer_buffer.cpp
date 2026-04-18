@@ -99,6 +99,9 @@ namespace em::Gpu
 
     void TransferBuffer::ApplyToBuffer(CopyPass &pass, std::uint32_t self_offset, Buffer &target, std::uint32_t target_offset, std::uint32_t size)
     {
+        if (size == 0)
+            return; // SDL doesn't seem to do this optimization, at least not in the backend-agnostic part.
+
         SDL_GPUTransferBufferLocation self_loc{
             .transfer_buffer = state.buffer,
             .offset = self_offset,

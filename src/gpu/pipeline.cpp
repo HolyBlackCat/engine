@@ -213,4 +213,14 @@ namespace em::Gpu
         if (state.pipeline)
             SDL_ReleaseGPUGraphicsPipeline(state.device, state.pipeline);
     }
+
+    void DynamicPipeline::RequestOutputFormat(Device &device, SDL_GPUTextureFormat format)
+    {
+        SDL_GPUTextureFormat &cur_format = params.targets.color.at(0).texture_format;
+        if (!*this || cur_format != format)
+        {
+            cur_format = format;
+            Pipeline::operator=(Pipeline(device, params));
+        }
+    }
 }

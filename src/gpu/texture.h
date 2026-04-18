@@ -3,11 +3,13 @@
 #include "em/macros/utils/flag_enum.h"
 #include "em/math/vector.h"
 #include "gpu/multisample.h"
+#include "utils/image.h"
 
 #include <SDL3/SDL_gpu.h>
 
 namespace em::Gpu
 {
+    class CopyPass;
     class Device;
 
     // A texture.
@@ -91,6 +93,9 @@ namespace em::Gpu
         };
 
         Texture(Device &device, const Params &params);
+
+        // This automatically creates a transfer buffer and uploads the image using it.
+        Texture(Device &device, CopyPass &pass, const Image &image, UsageFlags usage = UsageFlags::sampler);
 
         struct ViewExternalHandle {explicit ViewExternalHandle() = default;};
         // Put an existing handle into a texture, and don't free it when destroyed. Need this for swapchain textures.

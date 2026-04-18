@@ -94,6 +94,8 @@ namespace em::Gpu
 
         // Upload to a buffer or download from it (depending on constructor parameters).
         // You can assume that the upload finishes immediately, but for downloads YOU MUST WAIT for the command buffer fence.
+        // NOTE: Uploading to a buffer cycles it (which is optional in SDL, but we always do it, not sure why you wouldn't).
+        //   This makes `RenderPass::BindVertexBuffers()` stale, you must call it again on the freshly uploaded buffer.
         void ApplyToBuffer(CopyPass &pass, Buffer &target) {ApplyToBuffer(pass, 0, target, 0, Size());}
         void ApplyToBuffer(CopyPass &pass, std::uint32_t self_offset, Buffer &target, std::uint32_t target_offset, std::uint32_t size);
 

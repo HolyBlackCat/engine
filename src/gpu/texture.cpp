@@ -1,6 +1,7 @@
 #include "texture.h"
 
 #include "gpu/device.h"
+#include "gpu/transfer_buffer.h"
 
 #include <fmt/format.h>
 
@@ -33,6 +34,13 @@ namespace em::Gpu
         state.size = params.size;
         state.type = params.type;
         state.format = params.format;
+    }
+
+    Texture::Texture(Device &device, CopyPass &pass, const Image &image, UsageFlags usage)
+        : Texture(device, Params{.usage = usage, .size = image.pixels.size().to_vec3(1)})
+    {
+        TransferBuffer tb(device, image.pixels.as_flat_array());
+        tb.ApplyToTexture(pass, *this);
     }
 
     Texture::Texture(ViewExternalHandle, SDL_GPUDevice *device, SDL_GPUTexture *handle, ivec3 size, SDL_GPUTextureFormat format, Type type)

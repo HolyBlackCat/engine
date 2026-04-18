@@ -80,4 +80,17 @@ namespace em::Gpu
 
         return Texture(Texture::ViewExternalHandle{}, state.device, texture, size.to<int>().to_vec3(1), window.GetSwapchainTextureFormat());
     }
+
+    SwapchainAcquireResult WaitAndAcquireSwapchainTextureAndCmdBuf(Window &window, Device &device, Fence *output_fence)
+    {
+        SwapchainAcquireResult ret;
+        ret.cmdbuf = CommandBuffer(device, output_fence);
+        ret.texture = ret.cmdbuf.WaitAndAcquireSwapchainTexture(window);
+        if (!ret.texture)
+        {
+            ret.cmdbuf.CancelWhenDestroyed();
+            ret.cmdbuf = {};
+        }
+        return ret;
+    }
 }
