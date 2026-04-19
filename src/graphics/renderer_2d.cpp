@@ -128,6 +128,9 @@ namespace em::Graphics
 
     Renderer2d::~Renderer2d()
     {
+        if (!state.resources)
+            return; // A null instance, do nothing.
+
         EndRendering();
     }
 

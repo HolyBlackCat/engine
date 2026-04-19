@@ -103,6 +103,9 @@ namespace em::Graphics
 
     PixelUpscaler::~PixelUpscaler()
     {
+        if (!state.resources)
+            return; // A null instance, do nothing.
+
         // Finish the user render pass.
         state.user_render_pass = {};
 
