@@ -20,6 +20,11 @@ namespace em::Filesystem
         return dir;
     }
 
+    std::string GetResourcePath(std::string_view path)
+    {
+        return fmt::format("{}{}", GetResourceDir(), path);
+    }
+
     #ifdef _WIN32
     std::wstring WindowsUtf8ToWide(zstring_view input)
     {
@@ -144,7 +149,7 @@ namespace em::Filesystem
     }
     #endif
 
-    LoadedFile::LoadedFile(zstring_view file_path, bool *success)
+    FileContents::FileContents(zstring_view file_path, bool *success)
     {
         if (success)
             *success = true;

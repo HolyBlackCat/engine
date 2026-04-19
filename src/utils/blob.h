@@ -29,6 +29,9 @@ namespace em
     template <bool IsNullTerminated>
     class basic_blob
     {
+        // Need this to allow a more optimal construction of `blob` from `zblob`.
+        friend basic_blob<!IsNullTerminated>;
+
         // This nicely gives us owning and non-owning pointers, and we actually want the refcounted semantics.
         std::shared_ptr<const unsigned char[]> ptr;
 
@@ -38,20 +41,23 @@ namespace em
       public:
         static constexpr bool is_null_terminated = IsNullTerminated;
 
-        constexpr basic_blob() {}
+        [[nodiscard]] constexpr basic_blob() {}
 
-        struct Owning {explicit Owning() = default;};
+        // Convert from `zblob` to `blob`.
+        [[nodiscard]] basic_blob(basic_blob<!IsNullTerminated> other) requires (!IsNullTerminated) : basic_blob(std::move(other.ptr), other.size()) {}
 
         // Fully custom.
-        basic_blob(std::shared_ptr<const unsigned char[]> ptr, std::size_t size) noexcept
+        [[nodiscard]] basic_blob(std::shared_ptr<const unsigned char[]> ptr, std::size_t size) noexcept
             : ptr(std::move(ptr)), data_size(size)
         {}
 
         // Some constructors below work always, some only for non-null-terminated blobs, because they don't guarantee null-termianted-ness.
 
+        struct Owning {explicit Owning() = default;};
+
         // Owning byte vector. Not null-terminated.
         template <Blob_ByteLike T>
-        basic_blob(Owning, std::vector<T> vector) requires(!IsNullTerminated)
+        [[nodiscard]] basic_blob(Owning, std::vector<T> vector) requires(!IsNullTerminated)
         {
             data_size = vector.size();
             // Take ownership of a pointer, and then...
@@ -63,7 +69,7 @@ namespace em
         }
 
         // Owning string. Null-terminated.
-        basic_blob(Owning, std::string str)
+        [[nodiscard]] basic_blob(Owning, std::string str)
         {
             data_size = str.size();
 
@@ -76,14 +82,14 @@ namespace em
         struct NonOwning {explicit NonOwning() = default;};
 
         // Non-owning string view. Not null-terminated.
-        basic_blob(NonOwning, std::string_view str) noexcept requires(!IsNullTerminated)
+        [[nodiscard]] basic_blob(NonOwning, std::string_view str) noexcept requires(!IsNullTerminated)
         {
             data_size = str.size();
             ptr = decltype(ptr)(std::shared_ptr<void>{}, reinterpret_cast<const unsigned char *>(str.data()));
         }
 
         // Non-owning string view. Null-terminated.
-        basic_blob(NonOwning, const_byte_view view) noexcept
+        [[nodiscard]] basic_blob(NonOwning, const_byte_view view) noexcept
         {
             data_size = view.size();
             ptr = decltype(ptr)(std::shared_ptr<void>{}, reinterpret_cast<const unsigned char *>(view.data()));
@@ -93,13 +99,12 @@ namespace em
         struct OwningSdl {explicit OwningSdl() = default;};
 
         // Owning, will call `SDL_free` to clean up.
-        basic_blob(OwningSdl, const void *ptr, std::size_t size)
+        [[nodiscard]] basic_blob(OwningSdl, const void *ptr, std::size_t size)
             : ptr(reinterpret_cast<const unsigned char *>(ptr), [](const unsigned char *data){SDL_free(const_cast<unsigned char *>(data));}), data_size(size)
         {}
 
 
-        // Non-null?
-        [[nodiscard]] explicit operator bool() const noexcept {return bool(ptr);}
+        // Intentionally no `operator bool`. Empty blobs are normal blobs.
 
         // Copies the data into a null-terminated view.
         [[nodiscard]] zblob MakeNullTerminated() const requires(!IsNullTerminated)
@@ -120,13 +125,11 @@ namespace em
         [[nodiscard]] const unsigned char *end() const {return data() + size();}
 
         [[nodiscard]] operator std::span<const unsigned char>() const {return {ptr.get(), data_size.value};}
+        [[nodiscard]] operator std::span<const          char>() const {return {reinterpret_cast<const char *>(ptr.get()), data_size.value};}
+
         [[nodiscard]] operator zstring_view() const requires IsNullTerminated {return zstring_view(zstring_view::TrustNullTerminated{}, operator std::string_view());}
         // This doesn't work automatically (through `operator zstring_view`) in some cases,
         //   because the compiler refuses to consider more than one user-defined conversion at the same time.
         [[nodiscard]] operator std::string_view() const {return {reinterpret_cast<const char *>(ptr.get()), data_size.value};}
-
-        // Convert from `zblob` to `blob`.
-        [[nodiscard]] operator basic_blob<!IsNullTerminated>() const & requires IsNullTerminated {return {ptr, data_size.value};}
-        [[nodiscard]] operator basic_blob<!IsNullTerminated>() && requires IsNullTerminated {return {std::move(ptr), data_size.value};}
     };
 }

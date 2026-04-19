@@ -16,6 +16,12 @@
 // For that reason, we use `char` as the element type (instead of e.g. `unsigned char`) to allow it to be `constexpr` when bound to `char` ranges,
 //   since `reinterpret_cast` isn't constexpr.
 
+// Unlike `[z]blob`, those types are:
+// * Never owning.
+// * Not necessarily read-only.
+// * Bindable to arrays of types other than bytes, and reinterpretable back to other types.
+// * Constexpr.
+
 namespace em
 {
     template <bool IsConst>

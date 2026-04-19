@@ -10,7 +10,7 @@ namespace em
         stbi_image_free(ptr);
     }
 
-    Image::Image(std::string_view name, const blob &data)
+    Image::Image(std::string_view name, const blob_or_file &data)
     {
         ivec2 size;
         StbiUniquePtr u(reinterpret_cast<u8vec4 *>(stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(data.data()), int(data.size()), &size.x, &size.y, nullptr, 4)));

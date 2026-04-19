@@ -20,6 +20,10 @@ namespace em::Filesystem
     // NOTE: This always ends with a directory separator.
     [[nodiscard]] zstring_view GetResourceDir();
 
+    // A little helper that appends the string to `GetResourceDir()`.
+    // No leading slash in `path` is required.
+    [[nodiscard]] std::string GetResourcePath(std::string_view path);
+
 
     #ifdef _WIN32
     // Widen UTF-8 string to a `wchar_t` string.
@@ -60,9 +64,9 @@ namespace em::Filesystem
 
         // Opens a file, throws on failure.
         // If `size` isn't null, computes the size and writes it there.
-        File(zstring_view name, zstring_view mode, offset_t *size = nullptr);
+        [[nodiscard]] File(zstring_view name, zstring_view mode, offset_t *size = nullptr);
 
-        File(File &&other) noexcept : handle(other.handle) {other.handle = nullptr;}
+        [[nodiscard]] File(File &&other) noexcept : handle(other.handle) {other.handle = nullptr;}
         File &operator=(File other) noexcept {std::swap(handle, other.handle); return *this;}
 
         ~File();
@@ -78,17 +82,17 @@ namespace em::Filesystem
 
 
     // The contents of a file loaded to memory.
-    class LoadedFile : public zblob
+    class FileContents : public zblob
     {
         // A file name for the user.
         Meta::ZeroMovedFrom<std::string> name;
 
       public:
-        constexpr LoadedFile() {}
+        [[nodiscard]] constexpr FileContents() {}
 
         // Load from a file.
         // If `success` isn't null, on failure sets it to false (otherwise to true), instead of throwing an exception.
-        LoadedFile(zstring_view file_path, bool *success = nullptr);
+        [[nodiscard]] FileContents(zstring_view file_path, bool *success = nullptr);
 
         [[nodiscard]] const std::string &GetName() const {return name.value;}
     };
@@ -137,4 +141,35 @@ namespace em::Filesystem
     // Creates the directory and all its parents.
     // Returns true on success, including if the directory already exists.
     bool CreateDirectories(zstring_view path);
+}
+
+namespace em
+{
+    // Like `[z]blob`, but with an extra constructor accepting a filename, to simplify construction.
+    template <bool IsNullTerminated>
+    struct basic_blob_or_file : basic_blob<IsNullTerminated>
+    {
+        using basic_blob<IsNullTerminated>::basic_blob;
+
+        // Need different the string variants here, for implicit conversions to play nicely.
+
+        // Load from a file.
+        // If `success` isn't null, on failure sets it to false (otherwise to true), instead of throwing an exception.
+        [[nodiscard]] basic_blob_or_file(zstring_view file_path, bool *success = nullptr)
+            : basic_blob<IsNullTerminated>(Filesystem::FileContents(file_path, success))
+        {}
+        [[nodiscard]] basic_blob_or_file(const std::string &file_path, bool *success = nullptr)
+            : basic_blob<IsNullTerminated>(Filesystem::FileContents(file_path, success))
+        {}
+
+        // Convert from a regular `[z]blob`.
+        // The `zblob` to `blob_or_file` convesion is handled automatically by an inherited constructor, we don't need to do it here.
+        [[nodiscard]] basic_blob_or_file(basic_blob<IsNullTerminated> other) : basic_blob<IsNullTerminated>(std::move(other)) {}
+
+        // Convert from `zblob_or_file` to `blob_or_file`.
+        // [[nodiscard]] basic_blob_or_file(basic_blob_or_file<!IsNullTerminated> other) requires IsNullTerminated : basic_blob_or_file(std::move(other)) {}
+    };
+
+    using blob_or_file = basic_blob_or_file<false>;
+    using zblob_or_file = basic_blob_or_file<true>;
 }

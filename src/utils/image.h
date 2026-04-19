@@ -1,7 +1,7 @@
 #pragma once
 
 #include "em/math/vector.h"
-#include "utils/blob.h"
+#include "utils/filesystem.h"
 #include "utils/mdarray.h"
 
 #include <string_view>
@@ -27,6 +27,6 @@ namespace em
 
         // Loads the image from a blob (that can use the common file formats, such as PNG).
         // Throws on failure.
-        Image(std::string_view name, const blob &data);
+        Image(std::string_view name, const blob_or_file &data);
     };
 }
