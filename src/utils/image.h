@@ -27,6 +27,6 @@ namespace em
 
         // Loads the image from a blob (that can use the common file formats, such as PNG).
         // Throws on failure.
-        Image(std::string_view name, blob data);
+        Image(std::string_view name, const blob &data);
     };
 }
