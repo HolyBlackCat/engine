@@ -36,9 +36,9 @@ namespace em::Graphics
             )
 
             constexpr Vertex() {}
-            constexpr Vertex(fvec2 pos, fvec4 color, float beta = 1) : pos(pos), color(color), factors(0, 0, beta) {}
-            constexpr Vertex(fvec2 pos, fvec2 texcoord, float alpha = 1, float beta = 1) : pos(pos), texcoord(texcoord), factors(1, alpha, beta) {}
-            constexpr Vertex(fvec2 pos, fvec4 color, fvec2 texcoord, float mix_color = 1, float mix_alpha = 1, float beta = 1) : pos(pos), color(color), texcoord(texcoord), factors(mix_color, mix_alpha, beta) {}
+            constexpr Vertex(fvec2 pos, fvec4 color,                                                                            float beta = 1) : pos(pos), color(color), factors(0, 0, beta) {}
+            constexpr Vertex(fvec2 pos,              fvec2 texcoord, float alpha = 1,                                           float beta = 1) : pos(pos), texcoord(texcoord), factors(1, alpha, beta) {}
+            constexpr Vertex(fvec2 pos, fvec4 color, fvec2 texcoord,                  float mix_color = 1, float mix_alpha = 1, float beta = 1) : pos(pos), color(color), texcoord(texcoord), factors(mix_color, mix_alpha, beta) {}
         };
 
         struct Params
