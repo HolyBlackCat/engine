@@ -106,18 +106,18 @@ namespace em::Gpu
             std::uint32_t mipmap_layer = 0;
 
             // When uploading to a part of the texture, this is the offset in the texture.
-            uvec3 target_offset{};
+            ivec3 target_offset{};
 
             // The image size. If zero, will use the texture size (the components can be zeroed individually).
             // For layered textures, it's illegal to upload more than one layer at a time: https://github.com/libsdl-org/SDL/issues/12746#issuecomment-2781171335
-            uvec3 target_size{};
+            ivec3 target_size{};
 
             std::uint32_t self_byte_offset = 0;
 
             // When the buffer holds a larger image and you want to deal with its subimage, set this to the size of the larger image. Measured in pixels.
             // Keep this zero to match the `target_size` (or if that is zero too, the texture size). The components can be zeroed individually.
             // The Y component isn't needed unless you're dealing with 3D textures (or arrays of 2D textures), I believe.
-            uvec2 self_size{};
+            ivec2 self_size{};
         };
 
         // Upload to a texture or download from it (depending on constructor parameters).

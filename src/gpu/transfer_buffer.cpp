@@ -129,8 +129,8 @@ namespace em::Gpu
         SDL_GPUTextureTransferInfo self_loc{
             .transfer_buffer = state.buffer,
             .offset = params.self_byte_offset,
-            .pixels_per_row = params.self_size.x, // SDL automatically handles this being zero.
-            .rows_per_layer = params.self_size.y, // Same.
+            .pixels_per_row = std::uint32_t(params.self_size.x), // SDL automatically handles this being zero.
+            .rows_per_layer = std::uint32_t(params.self_size.y), // Same.
         };
 
         // Not entirely sure about this. See: https://github.com/libsdl-org/SDL/issues/12746
@@ -139,15 +139,15 @@ namespace em::Gpu
         SDL_GPUTextureRegion target_loc{
             .texture = target.Handle(),
             .mip_level = params.mipmap_layer,
-            .layer = is_layered ? params.target_offset.z : 0,
-            .x = params.target_offset.x,
-            .y = params.target_offset.y,
-            .z = params.target_offset.z,
-            .w = params.target_size.x ? params.target_size.x : std::uint32_t(target.GetSize().x),
-            .h = params.target_size.y ? params.target_size.y : std::uint32_t(target.GetSize().y),
+            .layer = std::uint32_t(is_layered ? params.target_offset.z : 0),
+            .x = std::uint32_t(params.target_offset.x),
+            .y = std::uint32_t(params.target_offset.y),
+            .z = std::uint32_t(params.target_offset.z),
+            .w = params.target_size.x ? std::uint32_t(params.target_size.x) : std::uint32_t(target.GetSize3().x),
+            .h = params.target_size.y ? std::uint32_t(params.target_size.y) : std::uint32_t(target.GetSize3().y),
             // We are not adding `is_layered ? 1 : ...` here, to hopefully make SDL assert if someone tries to pass `depth != 1` for a layered texture,
             //   which is illegal.
-            .d = params.target_size.z ? params.target_size.z : std::uint32_t(target.GetSize().z),
+            .d = params.target_size.z ? std::uint32_t(params.target_size.z) : std::uint32_t(target.GetSize3().z),
         };
 
         // Those functions can't fail.

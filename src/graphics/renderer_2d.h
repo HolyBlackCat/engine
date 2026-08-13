@@ -36,9 +36,9 @@ namespace em::Graphics
             )
 
             constexpr Vertex() {}
-            constexpr Vertex(fvec2 pos, fvec4 color,                                                                            float beta = 1) : pos(pos), color(color), factors(0, 0, beta) {}
-            constexpr Vertex(fvec2 pos,              fvec2 texcoord, float alpha = 1,                                           float beta = 1) : pos(pos), texcoord(texcoord), factors(1, alpha, beta) {}
-            constexpr Vertex(fvec2 pos, fvec4 color, fvec2 texcoord,                  float mix_color = 1, float mix_alpha = 1, float beta = 1) : pos(pos), color(color), texcoord(texcoord), factors(mix_color, mix_alpha, beta) {}
+            constexpr Vertex(fvec2 pos, with_default_component<fvec4, 1.f> color,                                                                            float beta = 1) : pos(pos), color(color.value), factors(0, 0, beta) {}
+            constexpr Vertex(fvec2 pos,                                           fvec2 texcoord, float alpha = 1,                                           float beta = 1) : pos(pos), texcoord(texcoord), factors(1, alpha, beta) {}
+            constexpr Vertex(fvec2 pos, with_default_component<fvec4, 1.f> color, fvec2 texcoord,                  float mix_color = 1, float mix_alpha = 1, float beta = 1) : pos(pos), color(color.value), texcoord(texcoord), factors(mix_color, mix_alpha, beta) {}
         };
 
         struct Params
@@ -96,7 +96,7 @@ namespace em::Graphics
         // Before calling this, you must have a render command buffer and a copy command buffer, and start render and copy passes on them respectively.
         // After the destructor runs, you must submit `copy_pass` and then `render_pass`, in this order.
         // `viewport_size` only affects how the input coordinates are mapped to NDC.
-        Renderer2d(Gpu::Device &device, Resources &resources, Gpu::CommandBuffer &render_cmdbuf, Gpu::RenderPass &render_pass, Gpu::CopyPass &copy_pass, SDL_GPUTextureFormat output_format, ivec2 viewport_size);
+        Renderer2d(Gpu::Device &device, Resources &resources, Gpu::CommandBuffer &render_cmdbuf, Gpu::RenderPass &render_pass, Gpu::CopyPass &copy_pass, Gpu::Texture::SizeAndFormat2D output_size_and_format);
 
         Renderer2d(Renderer2d &&) = default;
         Renderer2d &operator=(Renderer2d &&) = default;

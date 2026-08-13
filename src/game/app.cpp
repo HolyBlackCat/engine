@@ -1,6 +1,9 @@
+#include "app.h"
+
 #include "command_line/parser_refl.h"
 #include "command_line/parser.h"
 #include "em/refl/macros/structs.h"
+#include "em/refl/recursively_visit_elems_static.h"
 #include "em/refl/static_virtual.h"
 #include "gpu/buffer.h"
 #include "gpu/command_buffer.h"
@@ -13,13 +16,13 @@
 #include "graphics/pixel_upscaler.h"
 #include "graphics/renderer_2d.h"
 #include "graphics/shader_manager.h"
-#include "mainloop/game_state.h"
 #include "mainloop/main.h"
 #include "mainloop/reflected_app.h"
 #include "sdl/sdl.h"
 #include "sdl/window.h"
+#include "time/delta_timer.h"
+#include "time/metronome.h"
 
-#include <iostream>
 #include <memory>
 
 using namespace em;
@@ -47,12 +50,18 @@ struct GameApp : App::Module
         (Gpu::Texture)(texture)
         (Graphics::Renderer2d::Resources)(renderer_resources)
         (Graphics::PixelUpscaler::Resources)(upscaler_resources)
+        (Time::DeltaTimer)(delta_timer)
+        (Time::Metronome)(metronome, Time::Metronome(60))
     )
+
+    std::unique_ptr<BasicGameState> state;
 
     GameApp(int argc, char **argv)
     {
         { // Collect needed shaders, before parsing the flags.
             Refl::RecursivelyVisitStaticElemsOfTypeCvref<Graphics::Shader &>(*this, [&](Graphics::Shader &sh){shader_manager.AddShader(sh);});
+            for (const auto &in : Refl::StaticVirtual::GetMap<BasicGameState::Interface>())
+                in.second->NeededShadersStatic(shader_manager);
         }
 
         { // Parse the command line args.
@@ -60,7 +69,7 @@ struct GameApp : App::Module
             parser.AddDefaultHelpFlag();
             // Here we allow non-static callbacks in `this`, and only static callbacks in the game states.
             CommandLine::Refl::AddProvidedCommandLineFlags(parser, *this);
-            for (const auto &in : Refl::StaticVirtual::GetMap<App::BasicState::Interface>())
+            for (const auto &in : Refl::StaticVirtual::GetMap<BasicGameState::Interface>())
                 in.second->AddProvidedCommandLineFlagsStatic(parser);
             parser.Parse(argc, argv);
         }
@@ -70,21 +79,30 @@ struct GameApp : App::Module
         { // Load the texture.
             Gpu::CommandBuffer cmdbuf(gpu);
             Gpu::CopyPass copy_pass(cmdbuf);
-            texture = Gpu::Texture(gpu, copy_pass, Image("dummy", Filesystem::LoadedFile(fmt::format("{}assets/images/dummy.png", Filesystem::GetResourceDir()))));
+            texture = Gpu::Texture(gpu, copy_pass, Image("dummy", Filesystem::GetResourcePath("assets/images/dummy.png")));
             upscaler_resources = Graphics::PixelUpscaler::Resources(gpu, copy_pass, screen_size);
         }
 
         renderer_resources = Graphics::Renderer2d::Resources(gpu, Graphics::Renderer2d::Params{.num_triangles = 1, .texture = &texture});
+
+        state = Refl::StaticVirtual::GetMap<BasicGameState::Interface>().at("States::Game")->Make();
     }
 
-    App::Action Tick() override
+    App::Action Step() override
     {
+        // Tick:
+
+        metronome.BeginFrame(delta_timer.CountTicks());
+        while (metronome.Tick())
+        {
+            state->Tick();
+        }
+
+        // Frame:
+
         Gpu::SwapchainAcquireResult swapchain = WaitAndAcquireSwapchainTextureAndCmdBuf(window, gpu);
         if (!swapchain)
-        {
-            swapchain.cmdbuf.CancelWhenDestroyed();
             return App::Action::cont; // No draw target.
-        }
 
         { // Draw the graphics that's going to be upscaled.
             Graphics::PixelUpscaler upscaler(gpu, upscaler_resources, swapchain.cmdbuf, swapchain.texture);
@@ -92,18 +110,9 @@ struct GameApp : App::Module
             Gpu::CommandBuffer copy_cmdbuf(gpu);
             Gpu::CopyPass copy_pass(copy_cmdbuf);
 
-            Graphics::Renderer2d r(gpu, renderer_resources, swapchain.cmdbuf, upscaler.RenderPass(), copy_pass, upscaler.InputTexture().GetFormat(), upscaler.InputTexture().GetSize().to_vec2());
+            Graphics::Renderer2d r(gpu, renderer_resources, swapchain.cmdbuf, upscaler.RenderPass(), copy_pass, upscaler.InputTexture());
 
-            Graphics::Renderer2d::Vertex verts[] {
-                Graphics::Renderer2d::Vertex(fvec2(100, 100), fvec4(1,0,0,1)),
-                Graphics::Renderer2d::Vertex(fvec2(164, 100), fvec4(0,1,0,1)),
-                Graphics::Renderer2d::Vertex(fvec2(100, 164), fvec4(0,0,1,1)),
-                Graphics::Renderer2d::Vertex(fvec2(100 + 32, 100), fvec2(0,0)),
-                Graphics::Renderer2d::Vertex(fvec2(164 + 32, 100), fvec2(64,0)),
-                Graphics::Renderer2d::Vertex(fvec2(100 + 32, 164), fvec2(0,64)),
-            };
-
-            r.DrawVertices(verts);
+            state->Render(r);
         }
 
         return App::Action::cont;

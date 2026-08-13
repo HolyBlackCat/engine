@@ -10,7 +10,7 @@ namespace em::App
     // This is not a base class. Wrap your most derived class in this.
     // This doesn't inherit from `T` because then there seems to be no good way to handle the case where the base class doesn't override
     //   one of the functions, which causes us to recurse infinitely. There are two ways around that kinda looked promising:
-    // 1. We could call the functions below using `m.decltype(m)::Tick()` (or whatever), but that breaks polymorphism, i.e. if someone
+    // 1. We could call the functions below using `m.decltype(m)::Step()` (or whatever), but that breaks polymorphism, i.e. if someone
     //   wants to store a module using a base class pointer.
     // 2. We could check if the function is overridden in `T` via `if constexpr (std::is_same_v<decltype(&T::func), decltype(&Module::func)>)`,
     //   but that breaks down if the user starts adding overloads of `func` (we could also test for inability to take the address,
@@ -24,12 +24,12 @@ namespace em::App
             requires std::is_constructible_v<T, decltype(params)...>
             : underlying(EM_FWD(params)...) {}
 
-        Action Tick() override
+        Action Step() override
         {
             // Note exiting by default if there's nothing to tick.
             // This is important to avoid an infinite loop, which apparently is only stoppable by a SIGKILL.
             Action ret = Action::exit_success;
-            Refl::RecursivelyVisitElemsOfTypeCvref<Module, Meta::LoopAnyOf<>>(underlying, [&](Module &m){return bool(ret = m.Tick());});
+            Refl::RecursivelyVisitElemsOfTypeCvref<Module, Meta::LoopAnyOf<>>(underlying, [&](Module &m){return bool(ret = m.Step());});
             return ret;
         }
 

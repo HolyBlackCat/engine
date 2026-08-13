@@ -135,7 +135,7 @@ namespace em::Graphics
 
             bool file_was_loaded = true;
             // If `compile_when_finalized == false`, this just throws.
-            Filesystem::LoadedFile file(filename, compile_when_finalized ? &file_was_loaded : nullptr);
+            Filesystem::FileContents file(filename, compile_when_finalized ? &file_was_loaded : nullptr);
 
             if (file_was_loaded)
             {
@@ -179,9 +179,9 @@ namespace em::Graphics
                     throw std::runtime_error("Some shaders failed to compile!");
 
                 // Load the shaders.
-                // `LoadedFile(...)` and `FinalizeShader(...)` can throw, we don't mind that.
+                // `FileContents(...)` and `FinalizeShader(...)` can throw, we don't mind that.
                 for (const auto &elem : compiled_shaders)
-                    FinalizeShader(*elem.shader, Filesystem::LoadedFile(elem.filename));
+                    FinalizeShader(*elem.shader, Filesystem::FileContents(elem.filename));
             }
 
             { // Delete the unwanted files.

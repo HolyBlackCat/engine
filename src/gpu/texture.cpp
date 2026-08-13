@@ -19,9 +19,9 @@ namespace em::Gpu
             .type                 = SDL_GPUTextureType(params.type),
             .format               = params.format,
             .usage                = SDL_GPUTextureUsageFlags(params.usage),
-            .width                = std::uint32_t(params.size.x),
-            .height               = std::uint32_t(params.size.y),
-            .layer_count_or_depth = std::uint32_t(params.size.z),
+            .width                = std::uint32_t(params.size.value.x),
+            .height               = std::uint32_t(params.size.value.y),
+            .layer_count_or_depth = std::uint32_t(params.size.value.z),
             .num_levels           = std::uint32_t(params.num_mipmap_levels),
             .sample_count         = SDL_GPUSampleCount(params.multisample_samples),
             .props                = 0, // Not exposed for now.
@@ -31,7 +31,7 @@ namespace em::Gpu
         state.texture = SDL_CreateGPUTexture(device.Handle(), &sdl_params);
         if (!state.texture)
             throw std::runtime_error(fmt::format("Unable to create a GPU texture: {}", SDL_GetError()));
-        state.size = params.size;
+        state.size = params.size.value;
         state.type = params.type;
         state.format = params.format;
     }

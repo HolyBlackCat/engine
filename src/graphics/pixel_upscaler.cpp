@@ -83,10 +83,10 @@ namespace em::Graphics
         state.cmdbuf = &cmdbuf;
         state.output_texture = &output_texture;
 
-        int int_scale = (output_texture.GetSize().to_vec2() / resources.tex1.GetSize().to_vec2()).reduce(EM_FUNC(std::min));
-        ivec2 desired_tex2_size = resources.tex1.GetSize().to_vec2() * int_scale;
+        int int_scale = (output_texture.GetSize() / resources.tex1.GetSize()).reduce(EM_FUNC(std::min));
+        ivec2 desired_tex2_size = resources.tex1.GetSize() * int_scale;
 
-        if (!resources.tex2 || resources.tex2.GetSize().to_vec2() != desired_tex2_size)
+        if (!resources.tex2 || resources.tex2.GetSize() != desired_tex2_size)
         {
             resources.tex2 = Gpu::Texture(device, {
                 .format = state.resources->tex1.GetFormat(), // Same as in the other texture.
@@ -133,10 +133,10 @@ namespace em::Graphics
             rp.BindVertexBuffers({{{.buffer = &state.resources->fullscreen_triangle}}});
             Gpu::Shader::BindTextures(rp, {{{.texture = &state.resources->tex2, .sampler = &state.resources->sampler2}}});
 
-            float float_scale = (state.output_texture->GetSize().to_vec2().to<float>() / state.resources->tex1.GetSize().to_vec2()).reduce(EM_FUNC(std::min));
+            float float_scale = (state.output_texture->GetSize().to<float>() / state.resources->tex1.GetSize()).reduce(EM_FUNC(std::min));
 
-            ivec2 output_size = (state.resources->tex1.GetSize().to_vec2() * float_scale).map(EM_FUNC(std::round)).to<int>();
-            ivec2 output_pos = (state.output_texture->GetSize().to_vec2() - output_size) / 2;
+            ivec2 output_size = (state.resources->tex1.GetSize() * float_scale).map(EM_FUNC(std::round)).to<int>();
+            ivec2 output_pos = (state.output_texture->GetSize() - output_size) / 2;
 
             rp.SetViewport({.pos = output_pos, .size = output_size});
             rp.DrawPrimitives(3);

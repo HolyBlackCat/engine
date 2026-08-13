@@ -23,7 +23,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
-    return SDL_AppResult(static_cast<em::App::Module *>(appstate)->Tick());
+    return SDL_AppResult(static_cast<em::App::Module *>(appstate)->Step());
 }
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *e)

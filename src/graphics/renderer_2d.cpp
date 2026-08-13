@@ -101,9 +101,9 @@ namespace em::Graphics
         state.render_pass->DrawPrimitives(std::uint32_t(state.vertex_pos_in_buffer));
     }
 
-    Renderer2d::Renderer2d(Gpu::Device &device, Resources &resources, Gpu::CommandBuffer &render_cmdbuf, Gpu::RenderPass &render_pass, Gpu::CopyPass &copy_pass, SDL_GPUTextureFormat output_format, ivec2 viewport_size)
+    Renderer2d::Renderer2d(Gpu::Device &device, Resources &resources, Gpu::CommandBuffer &render_cmdbuf, Gpu::RenderPass &render_pass, Gpu::CopyPass &copy_pass, Gpu::Texture::SizeAndFormat2D output_size_and_format)
     {
-        resources.pipeline.RequestOutputFormat(device, output_format);
+        resources.pipeline.RequestOutputFormat(device, output_size_and_format.format);
 
         state.resources = &resources;
         state.render_pass = &render_pass;
@@ -113,10 +113,10 @@ namespace em::Graphics
         if (state.resources->params.texture)
         {
             Gpu::Shader::BindTextures(render_pass, {{{.texture = state.resources->params.texture, .sampler = &state.resources->sampler}}});
-            Gpu::Shader::SetUniform(render_cmdbuf, Gpu::Shader::Stage::fragment, 0, state.resources->params.texture->GetSize().to_vec2().to<float>());
+            Gpu::Shader::SetUniform(render_cmdbuf, Gpu::Shader::Stage::fragment, 0, state.resources->params.texture->GetSize().to<float>());
         }
 
-        Gpu::Shader::SetUniform(render_cmdbuf, Gpu::Shader::Stage::vertex, 0, fvec2(viewport_size.x, -viewport_size.y)); // Flip the Y component to make the Y axis go down.
+        Gpu::Shader::SetUniform(render_cmdbuf, Gpu::Shader::Stage::vertex, 0, fvec2(output_size_and_format.size.x, -output_size_and_format.size.y)); // Flip the Y component to make the Y axis go down.
         Gpu::Shader::BindTextures(render_pass, {{
             {.texture = state.resources->params.texture, .sampler = &state.resources->sampler},
         }});

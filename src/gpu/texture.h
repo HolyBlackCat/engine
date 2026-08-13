@@ -83,7 +83,7 @@ namespace em::Gpu
             UsageFlags usage = UsageFlags::sampler;
 
             // Keep the third dimension as `1` for 2D textures.
-            ivec3 size;
+            with_default_component<ivec3, 1> size;
 
             // Mipmaps?
             int num_mipmap_levels = 1;
@@ -110,11 +110,26 @@ namespace em::Gpu
         [[nodiscard]] explicit operator bool() const {return bool(state.texture);}
         [[nodiscard]] SDL_GPUTexture *Handle() {return state.texture;}
 
-        // Returns the size. The third dimension will be 1 for 2D textures.
-        [[nodiscard]] ivec3 GetSize() const {return state.size;}
+        // Returns the 2D size. For 3D textures this skips the Z component.
+        [[nodiscard]] ivec2 GetSize() const {return state.size.to_vec2();}
+        // Returns the 3D size. The third dimension will be 1 for 2D textures.
+        [[nodiscard]] ivec3 GetSize3() const {return state.size;}
 
         [[nodiscard]] Type GetType() const {return state.type;}
 
         [[nodiscard]] SDL_GPUTextureFormat GetFormat() const {return state.format;}
+
+
+        // A little helper struct storing texture size and format.
+        struct SizeAndFormat2D
+        {
+            ivec2 size;
+            SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+
+            // Elementwise.
+            SizeAndFormat2D(ivec2 size, SDL_GPUTextureFormat format) : size(size), format(format) {}
+            // Copy from a texture.
+            SizeAndFormat2D(const Texture &texture) : size(texture.GetSize()), format(texture.GetFormat()) {}
+        };
     };
 }
