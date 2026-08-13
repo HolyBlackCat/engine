@@ -116,8 +116,8 @@ namespace em::Graphics
             }}});
 
             rp.BindPipeline(state.resources->pipeline1);
-            rp.BindVertexBuffers({{.buffer = &state.resources->fullscreen_triangle}});
-            Gpu::Shader::BindTextures(rp, {{.texture = &state.resources->tex1, .sampler = &state.resources->sampler1}});
+            rp.BindVertexBuffers({{{.buffer = &state.resources->fullscreen_triangle}}});
+            Gpu::Shader::BindTextures(rp, {{{.texture = &state.resources->tex1, .sampler = &state.resources->sampler1}}});
             rp.DrawPrimitives(3);
         }
 
@@ -130,8 +130,8 @@ namespace em::Graphics
             }}});
 
             rp.BindPipeline(state.resources->pipeline2);
-            rp.BindVertexBuffers({{.buffer = &state.resources->fullscreen_triangle}});
-            Gpu::Shader::BindTextures(rp, {{.texture = &state.resources->tex2, .sampler = &state.resources->sampler2}});
+            rp.BindVertexBuffers({{{.buffer = &state.resources->fullscreen_triangle}}});
+            Gpu::Shader::BindTextures(rp, {{{.texture = &state.resources->tex2, .sampler = &state.resources->sampler2}}});
 
             float float_scale = (state.output_texture->GetSize().to_vec2().to<float>() / state.resources->tex1.GetSize().to_vec2()).reduce(EM_FUNC(std::min));
 

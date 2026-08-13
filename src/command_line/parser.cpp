@@ -129,7 +129,7 @@ namespace em::CommandLine
                         if (num_args > 1)
                             throw std::runtime_error(fmt::format("Flag `--{}` needs more than one argument, so `=` can't be used with it. Pass the arguments as separate arguments.", flag_view));
 
-                        iter->second->ConsumeArgs(*this, {first_arg->data()});
+                        iter->second->ConsumeArgs(*this, {{first_arg->data()}});
                     }
                     else
                     {
@@ -184,7 +184,7 @@ namespace em::CommandLine
                         if (num_args == 1 && this_flag[1])
                         {
                             // Pass the rest of the flag as the argument.
-                            iter->second->ConsumeArgs(*this, {this_flag + 1});
+                            iter->second->ConsumeArgs(*this, {{this_flag + 1}});
                             break; // Nothing else to do here, go to the next argument.
                         }
 

@@ -112,7 +112,7 @@ namespace em::Graphics
         // Try to support having no texture, because why not.
         if (state.resources->params.texture)
         {
-            Gpu::Shader::BindTextures(render_pass, {{.texture = state.resources->params.texture, .sampler = &state.resources->sampler}});
+            Gpu::Shader::BindTextures(render_pass, {{{.texture = state.resources->params.texture, .sampler = &state.resources->sampler}}});
             Gpu::Shader::SetUniform(render_cmdbuf, Gpu::Shader::Stage::fragment, 0, state.resources->params.texture->GetSize().to_vec2().to<float>());
         }
 
