@@ -1,6 +1,6 @@
 #include "pixel_upscaler.h"
 
-#include "em/macros/utils/lift.h"
+#include "em/math/functions.h"
 #include "gpu/refl/vertex_layout.h"
 #include "strings/trim.h"
 
@@ -83,7 +83,7 @@ namespace em::Graphics
         state.cmdbuf = &cmdbuf;
         state.output_texture = &output_texture;
 
-        int int_scale = (output_texture.GetSize() / resources.tex1.GetSize()).reduce(EM_FUNC(std::min));
+        int int_scale = (output_texture.GetSize() / resources.tex1.GetSize()).min();
         ivec2 desired_tex2_size = resources.tex1.GetSize() * int_scale;
 
         if (!resources.tex2 || resources.tex2.GetSize() != desired_tex2_size)
@@ -133,9 +133,9 @@ namespace em::Graphics
             rp.BindVertexBuffers({{{.buffer = &state.resources->fullscreen_triangle}}});
             Gpu::Shader::BindTextures(rp, {{{.texture = &state.resources->tex2, .sampler = &state.resources->sampler2}}});
 
-            float float_scale = (state.output_texture->GetSize().to<float>() / state.resources->tex1.GetSize()).reduce(EM_FUNC(std::min));
+            float float_scale = (state.output_texture->GetSize().to<float>() / state.resources->tex1.GetSize()).min();
 
-            ivec2 output_size = (state.resources->tex1.GetSize() * float_scale).map(EM_FUNC(std::round)).to<int>();
+            ivec2 output_size = round(state.resources->tex1.GetSize() * float_scale).to<int>();
             ivec2 output_pos = (state.output_texture->GetSize() - output_size) / 2;
 
             rp.SetViewport({.pos = output_pos, .size = output_size});
